@@ -61,13 +61,20 @@ def exportSRDF(model, path, mesh_format=''):
     Returns:
 
     """
-    output = [xmlHeader, indent + '<robot name="' + model['name'] + '">\n\n']
+    output = [xmlHeader, f'{indent}<robot name="' + model['name'] + '">\n\n']
     sorted_group_keys = sorted(model['groups'])
     for groupname in sorted_group_keys:
         output.append(indent * 2 + '<group name="' + groupname + '">\n')
         # TODO: once groups are implemented, this should be sorted aswell:
-        for member in model['groups'][groupname]:
-            output.append(indent * 3 + '<' + member['type'] + ' name="' + member['name'] + '" />\n')
+        output.extend(
+            indent * 3
+            + '<'
+            + member['type']
+            + ' name="'
+            + member['name']
+            + '" />\n'
+            for member in model['groups'][groupname]
+        )
         output.append(indent * 2 + '</group>\n\n')
     sorted_chain_keys = sorted(model['chains'].keys())
     for chainname in sorted_chain_keys:
@@ -105,16 +112,15 @@ def exportSRDF(model, path, mesh_format=''):
                 + '">\n'
             )
             # TODO: there does not seem to be a way to sort the spheres if there are multiple
-            for sphere in model['links'][link]['approxcollision']:
-                output.append(
-                    xmlline(
-                        3,
-                        'sphere',
-                        ('center', 'radius'),
-                        (l2str(sphere['center']), sphere['radius']),
-                    )
+            output.extend(
+                xmlline(
+                    3,
+                    'sphere',
+                    ('center', 'radius'),
+                    (l2str(sphere['center']), sphere['radius']),
                 )
-            output.append(indent * 2 + '</link_sphere_approximation>\n\n')
+                for sphere in model['links'][link]['approxcollision']
+            )
         else:
             output.append(
                 indent * 2
@@ -123,7 +129,7 @@ def exportSRDF(model, path, mesh_format=''):
                 + '">\n'
             )
             output.append(xmlline(3, 'sphere', ('center', 'radius'), ('0.0 0.0 0.0', '0')))
-            output.append(indent * 2 + '</link_sphere_approximation>\n\n')
+        output.append(indent * 2 + '</link_sphere_approximation>\n\n')
     # calculate collision-exclusive links
     collisionExclusives = []
     for combination in itertools.combinations(model['links'], 2):
@@ -215,21 +221,13 @@ def buildCollisionDictionary(self, collision_exclusives, robot):
             and pair[1] != robot['joints'][pair[0]]['parent']
         ):
             if pair[0] not in dic:
-                dic[pair[0]] = []
+                dic[pair[0]] = [pair[1]]
+            elif pair[1] not in dic[pair[0]]:
                 dic[pair[0]].append(pair[1])
-            else:
-                if pair[1] not in dic[pair[0]]:
-                    dic[pair[0]].append(pair[1])
             if pair[1] not in dic:
-                dic[pair[1]] = []
+                dic[pair[1]] = [pair[0]]
+            elif pair[0] not in dic[pair[1]]:
                 dic[pair[1]].append(pair[0])
-            else:
-                if pair[0] not in dic[pair[1]]:
-                    dic[pair[1]].append(pair[0])
-        else:
-            pass
-            # TODO handle this somehow...
-            # print("Pair: ", pair, " not included")
     print("Collision Dictionary:\n", dic)
     return dic
 
@@ -244,14 +242,8 @@ def checkGroup(self, group, colls):
     Returns:
 
     """
-    cut = []
-    for elem in group:
-        if elem in colls:
-            cut.append(elem)
-    if len(cut) == len(group):
-        return cut
-    else:
-        return []
+    cut = [elem for elem in group if elem in colls]
+    return cut if len(cut) == len(group) else []
 
 
 def processGroup(self, group, link, colls):

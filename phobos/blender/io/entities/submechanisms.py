@@ -26,7 +26,10 @@ def exportSubmechanisms(model, path):
     Returns:
 
     """
-    log("Phobos Submechanisms export: Creating submechanisms data at " + path, "INFO")
+    log(
+        f"Phobos Submechanisms export: Creating submechanisms data at {path}",
+        "INFO",
+    )
     for submechanism in model['submechanisms']:
         root = sUtils.getObjectByProperty('submechanism/name', submechanism['contextual_name'])
         linkobjs = [root] + root['submechanism/spanningtree']
@@ -43,7 +46,7 @@ def exportSubmechanisms(model, path):
         jointname = nUtils.getObjectName(root, 'joint')
         if jointname in model['joints']:
             del model['joints'][jointname]
-            log('Removed joint which is not part of submodel: ' + jointname, 'DEBUG')
+            log(f'Removed joint which is not part of submodel: {jointname}', 'DEBUG')
         exportModel(model, path, ['urdf'])
 
 

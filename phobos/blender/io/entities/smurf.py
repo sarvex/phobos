@@ -48,10 +48,7 @@ def deriveEntity(root, outpath):
         bpy.ops.scene.reload_models_and_poses_operator()
         modelsPosesColl = bUtils.getPhobosPreferences().models_poses
         for robot_model in modelsPosesColl:
-            if (root["model/name"] == robot_model.robot_name) and (
-                root["entity/pose"] == robot_model.label
-            ):
-                pass
+            pass
         entity['file'] = os.path.join(
             os.path.relpath(robot_model.path, outpath), root["name"] + ".smurf"
         )
@@ -71,7 +68,7 @@ def deriveEntity(root, outpath):
     else:
         modelpath = os.path.join(outpath, root['model/name'], 'smurf')
         # TODO why the spacing between the paths?
-        log("Scene paths: " + outpath + ' ' + modelpath, "DEBUG")
+        log(f"Scene paths: {outpath} {modelpath}", "DEBUG")
         entity['file'] = os.path.join(
             os.path.relpath(modelpath, os.path.dirname(outpath)), root['model/name'] + ".smurf"
         )
@@ -92,11 +89,14 @@ def deriveRefinedCollisionData(model):
     for linkname in model['links']:
         for elementname in model['links'][linkname]['collision']:
             element = model['links'][linkname]['collision'][elementname]
-            data = {
+            if data := {
                 key: element[key]
-                for key in (a for a in element.keys() if a not in ['geometry', 'name', 'pose'])
-            }
-            if data:
+                for key in (
+                    a
+                    for a in element.keys()
+                    if a not in ['geometry', 'name', 'pose']
+                )
+            }:
                 data['name'] = model['links'][linkname]['collision'][elementname]['name']
                 data['link'] = linkname
                 collisiondata[elementname] = data
@@ -145,10 +145,10 @@ def sort_for_yaml_dump(dictionary, category):
 
         return {category: sort_dict_list(dictionary[category], 'name')}
     elif category == 'simulation':
-        return_dict = {}
-        for viscol in ['collision', 'visual']:
-            return_dict[viscol] = sort_dict_list(dictionary[viscol], 'name')
-        return return_dict
+        return {
+            viscol: sort_dict_list(dictionary[viscol], 'name')
+            for viscol in ['collision', 'visual']
+        }
     return dictionary
 
 
@@ -163,9 +163,7 @@ def sort_dict_list(dict_list, sort_key):
 
     """
     sorted_dict_list = []
-    sort_key_values = []
-    for dictionary in dict_list:
-        sort_key_values.append(dictionary[sort_key])
+    sort_key_values = [dictionary[sort_key] for dictionary in dict_list]
     # FIXME: This is really complicated! Either there is an in-built function or dictionary['name'] would suffice
     for value in sort_urdf_elements(sort_key_values):
         for dictionary in dict_list:

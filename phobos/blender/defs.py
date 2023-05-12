@@ -14,6 +14,7 @@ Contains different definitions for Phobos. Additional defintions are parsed from
 added to this module at runtime.
 """
 
+
 import os
 import glob
 import re
@@ -113,9 +114,9 @@ definitions = {
     'submodeltypes': {},
 }
 
-def_settings = {key: {} for key in definitions.keys()}
+def_settings = {key: {} for key in definitions}
 
-def_subcategories = {key: set([]) for key in definitions.keys()}
+def_subcategories = {key: set([]) for key in definitions}
 
 
 def updateDefs(defsFolderPath):
@@ -132,14 +133,14 @@ def updateDefs(defsFolderPath):
         for category in diction:
             for key, value in diction[category].items():
                 if category not in definitions:
-                    print("Creating new definition type: " + category)
+                    print(f"Creating new definition type: {category}")
                     definitions[category] = {}
                     def_settings[category] = {}
                     def_subcategories[category] = set([])
 
                 # TODO we need to insert user data, instead overwriting existing
                 if key in definitions[category]:
-                    print("Entry for " + category + '/' + key)
+                    print(f"Entry for {category}/{key}")
 
                 # parse def_settings to other dictionary
                 if isinstance(value, dict) and 'general' in value and value['general']:
@@ -175,7 +176,7 @@ def __evaluateString(s):
         try:
             s = s.replace(ma, str(eval(ma[1:-1])))
         except ():
-            print("The expression " + ma + " could not be evaluated. Ignoring file")
+            print(f"The expression {ma} could not be evaluated. Ignoring file")
             return ""
     return s
 
@@ -192,7 +193,7 @@ def __parseAllYAML(path):
     """
     dicts = []
     for file in glob.iglob(os.path.join(path, '**/*.yml'), recursive=True):
-        print('  ' + os.path.basename(file))
+        print(f'  {os.path.basename(file)}')
         try:
             with open(os.path.join(path, file), 'r') as f:
                 tmpstring = f.read()
@@ -201,17 +202,17 @@ def __parseAllYAML(path):
                 tmpyaml = json.loads(__evaluateString(tmpstring))
 
                 if not tmpyaml:
-                    print(file + " does not contain any yaml information.")
+                    print(f"{file} does not contain any yaml information.")
                     continue
                 dicts.append(tmpyaml)
             except Exception as e:
                 print(os.path.relpath(file, path) + " could not be parsed:\n" + str(e))
         except FileNotFoundError:
-            print(os.path.relpath(file, path=path) + " was not found.")
+            print(f"{os.path.relpath(file, path=path)} was not found.")
     return dicts
 
 
 # Update definitions from files
-definitionpath = os.path.join(phobossystem.getConfigPath() + '/definitions')
+definitionpath = os.path.join(f'{phobossystem.getConfigPath()}/definitions')
 print("Parsing definitions from:", definitionpath)
 updateDefs(definitionpath)

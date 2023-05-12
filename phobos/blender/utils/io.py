@@ -47,8 +47,7 @@ def xmlline(ind, tag, names, values):
 
     """
     line = [indent * max(0, ind) + '<' + tag]
-    for i in range(len(names)):
-        line.append(' ' + names[i] + '="' + str(values[i]) + '"')
+    line.extend(f' {names[i]}="{str(values[i])}"' for i in range(len(names)))
     line.append('/>\n')
     return ''.join(line)
 
@@ -85,7 +84,7 @@ def securepath(path):
         try:
             os.makedirs(path)
         except NotADirectoryError:
-            log(path + " is not a valid directory", "ERROR")
+            log(f"{path} is not a valid directory", "ERROR")
             return None
     return path
 
@@ -113,12 +112,12 @@ def getEntityRoots():
       list: roots of well-defined entities in the scene
 
     """
-    roots = [
+    return [
         obj
         for obj in bpy.context.scene.objects
-        if sUtils.isEntity(obj) and (not getExpSettings().selectedOnly or obj.select_get())
+        if sUtils.isEntity(obj)
+        and (not getExpSettings().selectedOnly or obj.select_get())
     ]
-    return roots
 
 
 def getModelListForEnumProp(self, context):
@@ -130,7 +129,7 @@ def getModelListForEnumProp(self, context):
     Returns:
 
     """
-    rootnames = set([nUtils.getModelName(r) for r in getExportModels()])
+    rootnames = {nUtils.getModelName(r) for r in getExportModels()}
     return sorted([(r,) * 3 for r in rootnames])
 
 
@@ -146,20 +145,20 @@ def getDictFromYamlDefs(phobostype, defname, name):
       : dict -- phobos representation from the definition
 
     """
-    if 'material' in defs.def_settings[phobostype + 's'][defname]:
-        material = defs.def_settings[phobostype + 's'][defname]['material']
+    if 'material' in defs.def_settings[f'{phobostype}s'][defname]:
+        material = defs.def_settings[f'{phobostype}s'][defname]['material']
     else:
         material = None
 
     # separate properties and annotations from each other
     props = {
         key: value
-        for key, value in defs.definitions[phobostype + 's'][defname].items()
+        for key, value in defs.definitions[f'{phobostype}s'][defname].items()
         if not isinstance(value, dict)
     }
     annots = {
         key: value
-        for key, value in defs.definitions[phobostype + 's'][defname].items()
+        for key, value in defs.definitions[f'{phobostype}s'][defname].items()
         if isinstance(value, dict)
     }
 
@@ -167,15 +166,15 @@ def getDictFromYamlDefs(phobostype, defname, name):
     phobos_dict = {
         'name': name,
         'defname': defname,
-        'category': defs.def_settings[phobostype + 's'][defname]['categories'],
+        'category': defs.def_settings[f'{phobostype}s'][defname]['categories'],
         'material': material,
-        'type': defs.def_settings[phobostype + 's'][defname]['type'],
+        'type': defs.def_settings[f'{phobostype}s'][defname]['type'],
         'props': props,
         'annotations': annots,
     }
 
     # add the general settings for this object
-    general_settings = defs.def_settings[phobostype + 's'][defname]
+    general_settings = defs.def_settings[f'{phobostype}s'][defname]
     for gensetting in general_settings.keys():
         phobos_dict[gensetting] = general_settings[gensetting]
 
@@ -215,7 +214,13 @@ def getOutputMeshpath(path, meshtype=None, pathType="relative"):
     if not pathType:
         pathType = getOutputPathtype()
     if pathType == "ros_package":
-        rpath = "package://"+getRosPackageName()+"/"+os.path.join('meshes', meshtype if meshtype else getOutputMeshtype()) + "/"
+        rpath = (
+            f"package://{getRosPackageName()}/"
+            + os.path.join(
+                'meshes', meshtype if meshtype else getOutputMeshtype()
+            )
+            + "/"
+        )
 
     return rpath
 
@@ -317,55 +322,57 @@ def importBlenderModel(filepath, namespace='', prefix=False):
     Returns:
 
     """
-    if os.path.exists(filepath) and os.path.isfile(filepath) and filepath.endswith('.blend'):
-        log("Importing Blender model" + filepath, "INFO")
-        objects = []
-        with bpy.data.libraries.load(filepath) as (data_from, data_to):
-            for objname in data_from.objects:
-                objects.append({'name': objname})
-        bpy.ops.wm.append(directory=filepath + "/Object/", files=objects)
-        imported_objects = bpy.context.selected_objects
-        resources = [obj for obj in imported_objects if obj.name.startswith('resource::')]
-        new_objects = [obj for obj in imported_objects if not obj.name.startswith('resource::')]
-        if resources:
-            if 'resources' not in bpy.data.scenes.keys():
-                bpy.data.scenes.new('resources')
-            sUtils.selectObjects(resources)
-            bpy.ops.object.make_links_scene(scene='resources')
-            bpy.ops.object.delete(use_global=False)
-            sUtils.selectObjects(new_objects)
-        bpy.ops.view3d.view_selected(use_all_regions=False)
+    if (
+        not os.path.exists(filepath)
+        or not os.path.isfile(filepath)
+        or not filepath.endswith('.blend')
+    ):
+        return False
+    log(f"Importing Blender model{filepath}", "INFO")
+    objects = []
+    with bpy.data.libraries.load(filepath) as (data_from, data_to):
+        objects.extend({'name': objname} for objname in data_from.objects)
+    bpy.ops.wm.append(directory=f"{filepath}/Object/", files=objects)
+    imported_objects = bpy.context.selected_objects
+    resources = [obj for obj in imported_objects if obj.name.startswith('resource::')]
+    new_objects = [obj for obj in imported_objects if not obj.name.startswith('resource::')]
+    if resources:
+        if 'resources' not in bpy.data.scenes.keys():
+            bpy.data.scenes.new('resources')
+        sUtils.selectObjects(resources)
+        bpy.ops.object.make_links_scene(scene='resources')
+        bpy.ops.object.delete(use_global=False)
+        sUtils.selectObjects(new_objects)
+    bpy.ops.view3d.view_selected(use_all_regions=False)
         # allow the use of both prefixes and namespaces, thus truly merging
         # models or keeping them separate for export
-        if namespace != '':
-            if prefix:
-                for obj in bpy.context.selected_objects:
+    if namespace != '':
+        if prefix:
+            for obj in bpy.context.selected_objects:
                     # set prefix instead of namespace
-                    obj.name = namespace + '__' + obj.name
-                    # make sure no internal name-properties remain
-                    for key in obj.keys():
-                        try:
-                            if obj[key].endswidth("/name"):
-                                del obj[key]
-                        except AttributeError:  # prevent exceptions from non-string properties
-                            pass
-            else:
-                for obj in bpy.context.selected_objects:
-                    nUtils.addNamespace(obj, namespace)
-        submechanism_roots = [
-            obj
-            for obj in bpy.data.objects
-            if obj.phobostype == 'link' and 'submechanism/spanningtree' in obj
-        ]
-        for root in submechanism_roots:
-            partlist = [root] + root['submechanism/spanningtree']
-            if 'submechanism/freeloader' in root:
-                partlist += root['submechanism/freeloader']
-            sUtils.selectObjects(partlist, active=0)
-            bpy.ops.group.create(name='submechanism:' + root['submechanism/name'])
-        return True
-    else:
-        return False
+                obj.name = f'{namespace}__{obj.name}'
+                # make sure no internal name-properties remain
+                for key in obj.keys():
+                    try:
+                        if obj[key].endswidth("/name"):
+                            del obj[key]
+                    except AttributeError:  # prevent exceptions from non-string properties
+                        pass
+        else:
+            for obj in bpy.context.selected_objects:
+                nUtils.addNamespace(obj, namespace)
+    submechanism_roots = [
+        obj
+        for obj in bpy.data.objects
+        if obj.phobostype == 'link' and 'submechanism/spanningtree' in obj
+    ]
+    for root in submechanism_roots:
+        partlist = [root] + root['submechanism/spanningtree']
+        if 'submechanism/freeloader' in root:
+            partlist += root['submechanism/freeloader']
+        sUtils.selectObjects(partlist, active=0)
+        bpy.ops.group.create(name='submechanism:' + root['submechanism/name'])
+    return True
 
 
 def importResources(restuple, filepath=None):
@@ -401,7 +408,7 @@ def importResources(restuple, filepath=None):
         with bpy.data.libraries.load(filepath) as (data_from, data_to):
             objects = [{'name': name} for name in new_objects if name in data_from.objects]
             if objects:
-                bpy.ops.wm.append(directory=filepath + "/Object/", files=objects)
+                bpy.ops.wm.append(directory=f"{filepath}/Object/", files=objects)
             else:
                 log('Resource objects could not be imported.', 'ERROR')
                 bUtils.switchToScene(currentscene)
@@ -429,9 +436,7 @@ def getResource(specifiers):
 
     if 'resources' not in bpy.data.scenes or resobjname not in bpy.data.scenes['resources'].objects:
         newobjects = importResources((specifiers,))
-        if not newobjects:
-            return None
-        return newobjects[0]
+        return None if not newobjects else newobjects[0]
     return bpy.data.scenes['resources'].objects[resobjname]
 
 
@@ -452,25 +457,24 @@ def copy_model(model):
 
     """
     if isinstance(model, dict):
-        newmodel = {}
-        for key, value in model.items():
-            if isinstance(value, dict) or isinstance(value, list):
-                newmodel[key] = copy_model(value)
-            else:
-                newmodel[key] = value
-        return newmodel
+        return {
+            key: copy_model(value)
+            if isinstance(value, (dict, list))
+            else value
+            for key, value in model.items()
+        }
     elif isinstance(model, list):
         newlist = []
         for value in model:
             if isinstance(value, bpy.types.Object):
                 newlist.append(value)
-            elif isinstance(value, dict) or isinstance(value, list):
+            elif isinstance(value, (dict, list)):
                 newlist.append(copy_model(value))
             else:
                 newlist.append(value)
         return newlist
     raise TypeError(
-        "Deep copy failed. Unsuspected element in the dictionary: {}".format(type(model))
+        f"Deep copy failed. Unsuspected element in the dictionary: {type(model)}"
     )
 
 
@@ -506,9 +510,7 @@ def exportModel(model, exportpath='.', entitytypes=None):
                 if path.isfile(sourcepath):
                     texture_path = securepath(path.join(exportpath, 'textures'))
                     log(
-                        "Exporting texture {} of material {} to {}.".format(
-                            texturetype, mat[texturetype], texture_path
-                        ),
+                        f"Exporting texture {texturetype} of material {mat[texturetype]} to {texture_path}.",
                         'INFO',
                     )
                     try:
@@ -516,17 +518,14 @@ def exportModel(model, exportpath='.', entitytypes=None):
                             sourcepath, path.join(texture_path, path.basename(mat[texturetype]))
                         )
                     except shutil.SameFileError:
-                        log(
-                            "{} of material {} already in place.".format(texturetype, materialname),
-                            'WARNING',
-                        )
+                        log(f"{texturetype} of material {materialname} already in place.", 'WARNING')
 
                     # update the texture path in the model
-                    mat[texturetype] = 'textures/' + path.basename(mat[texturetype])
+                    mat[texturetype] = f'textures/{path.basename(mat[texturetype])}'
 
     # export model in selected formats
     for entitytype in entitytypes:
-        typename = "export_entity_" + entitytype
+        typename = f"export_entity_{entitytype}"
         # check if format exists and should be exported
         if not getattr(bpy.context.scene, typename, False):
             continue
@@ -543,17 +542,23 @@ def exportModel(model, exportpath='.', entitytypes=None):
 
     # export meshes in selected formats
     i = 1
-    mt = len([m for m in mesh_types if getattr(bpy.context.scene, "export_mesh_" + m, False)])
+    mt = len(
+        [
+            m
+            for m in mesh_types
+            if getattr(bpy.context.scene, f"export_mesh_{m}", False)
+        ]
+    )
     mc = len(model['meshes'])
     n = mt * mc
     for meshtype in mesh_types:
         mesh_path = getOutputMeshpath(exportpath, meshtype, "relative")
         try:
-            if getattr(bpy.context.scene, "export_mesh_" + meshtype, False):
+            if getattr(bpy.context.scene, f"export_mesh_{meshtype}", False):
                 securepath(mesh_path)
                 for meshname in model['meshes']:
                     mesh_types[meshtype]['export'](model['meshes'][meshname], mesh_path)
-                    display.setProgress(i / n, 'Exporting ' + meshname + '.' + meshtype + '...')
+                    display.setProgress(i / n, f'Exporting {meshname}.{meshtype}...')
                     i += 1
         except KeyError as e:
             log("Error exporting mesh {0} as {1}: {2}".format(meshname, meshtype, str(e)), "ERROR")
@@ -583,7 +588,7 @@ def exportScene(
         for entity in scenedict['entities']:
             exportModel(entity, exportpath, entitytypes)
     for scenetype in scenetypes:
-        gui_typename = "export_scene_" + scenetype
+        gui_typename = f"export_scene_{scenetype}"
         # check if format exists and should be exported
         if getattr(bpy.context.scene, gui_typename):
             scene_types[scenetype]['export'](

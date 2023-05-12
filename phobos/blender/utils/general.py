@@ -89,10 +89,7 @@ def only_contains_int(stringlist):
       : bool -- True if every string in the list can be represented as int, False if not
 
     """
-    for num in stringlist:
-        if not is_int(num):
-            return False
-    return True
+    return all(is_int(num) for num in stringlist)
 
 
 def only_contains_float(stringlist):
@@ -107,10 +104,7 @@ def only_contains_float(stringlist):
       : bool -- True if every string in the list can be represented as float, False if not
 
     """
-    for num in stringlist:
-        if not is_float(num):
-            return False
-    return True
+    return all(is_float(num) for num in stringlist)
 
 
 def parse_text(text):
@@ -132,12 +126,9 @@ def parse_text(text):
     if len(numstrings) > 1:
         # int list
         if only_contains_int(numstrings):
-            nums = [int(num) for num in numstrings]
-            return nums
-        # float list
+            return [int(num) for num in numstrings]
         elif only_contains_float(numstrings):
-            nums = [float(num) for num in numstrings]
-            return nums
+            return [float(num) for num in numstrings]
         # return a string list
         return numstrings
     return parse_number(text)
@@ -200,7 +191,7 @@ def roundFloatsInDict(data, decimals):
     epsilon = 10 ** -decimals
     if is_float(data):
         if isinstance(data, str):
-            log("Skipping rounding of " + data + " due to its type 'str'", "WARNING")
+            log(f"Skipping rounding of {data} due to its type 'str'", "WARNING")
             return data
         return 0 if abs(data) < epsilon else round(data, decimals)
     elif isinstance(data, list):
@@ -258,10 +249,9 @@ def datetimeFromIso(iso):
 
     """
     try:
-        dtime = datetime(*[int(a) for a in re.split(":|-|T| |\.", iso)])
-        return dtime
+        return datetime(*[int(a) for a in re.split(":|-|T| |\.", iso)])
     except ValueError as error:
-        log("Could not convert ISO string: " + str(error), "ERROR")
+        log(f"Could not convert ISO string: {str(error)}", "ERROR")
         return datetime.now()
 
 
@@ -290,9 +280,7 @@ def outerProduct(v, u):
       : mathutils.Matrix -- outer product of v and u
 
     """
-    lines = []
-    for vi in v:
-        lines.append([vi * ui for ui in u])
+    lines = [[vi * ui for ui in u] for vi in v]
     return mathutils.Matrix(lines)
 
 

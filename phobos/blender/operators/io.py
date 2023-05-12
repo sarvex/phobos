@@ -107,7 +107,7 @@ class ExportSceneOperator(Operator):
                 entity = deriveGenericEntity(root)
             exportlist.append(entity)
         for scenetype in scene_types:
-            typename = "export_scene_" + scenetype
+            typename = f"export_scene_{scenetype}"
             # check if format exists and should be exported
             if getattr(bpy.context.scene, typename):
                 scene_types[scenetype]['export'](
@@ -184,7 +184,7 @@ class ExportModelOperator(Operator):
             if not securepath(exportpath):
                 log("Could not secure path to export to.", "ERROR")
                 continue
-            log("Export path: " + exportpath, "DEBUG")
+            log(f"Export path: {exportpath}", "DEBUG")
             ioUtils.exportModel(models.deriveModelDictionary(root), exportpath)
 
         # select all exported models after export is done
@@ -195,7 +195,7 @@ class ExportModelOperator(Operator):
         else:
             bpy.ops.object.select_all(action='DESELECT')
             for root in roots:
-                sUtils.selectObjects(list([root]), False)
+                sUtils.selectObjects([root], False)
             bpy.ops.phobos.select_model()
 
         # TODO: Move mesh export to individual formats? This is practically SMURF
@@ -279,14 +279,14 @@ class ImportModelOperator(bpy.types.Operator):
         """
         suffix = self.filepath.split(".")[-1]
         if suffix in entity_io.entity_types:
-            log("Importing " + self.filepath + ' as ' + suffix, "INFO")
+            log(f"Importing {self.filepath} as {suffix}", "INFO")
             model = entity_io.entity_types[suffix]['import'](self.filepath)
             # bUtils.cleanScene()
             models.buildModelFromDictionary(model)
             for layer in ['link', 'inertial', 'visual', 'collision', 'sensor']:
                 bUtils.toggleLayer(layer, True)
         else:
-            log("No module found to import " + suffix, "ERROR")
+            log(f"No module found to import {suffix}", "ERROR")
 
         return {'FINISHED'}
 
@@ -344,10 +344,12 @@ def loadModelsAndPoses():
     robots_found = []
     print(modelsfolder)
     for root, dirs, files in os.walk(modelsfolder):
-        for file in files:
-            if os.path.splitext(file)[-1] == '.smurf':
-                robots_found.append(os.path.join(root, file))
-    robots_dict = dict()
+        robots_found.extend(
+            os.path.join(root, file)
+            for file in files
+            if os.path.splitext(file)[-1] == '.smurf'
+        )
+    robots_dict = {}
     for robot in robots_found:
         with open(robot, 'r') as robot_smurf:
             robot_yml = json.loads(robot_smurf)
@@ -364,21 +366,18 @@ def loadModelsAndPoses():
                             robots_dict[model_name][-1]["robotpath"] = os.path.dirname(robot)
 
     modelsPosesColl.clear()
-    for model_name in robots_dict.keys():
+    for model_name, value in robots_dict.items():
         item = modelsPosesColl.add()
         item.robot_name = model_name
         item.name = model_name
         item.label = model_name
         item.type = "robot_name"
-        if item.hide:
-            item.icon = "RIGHTARROW"
-        else:
-            item.icon = "DOWNARROW_HLT"
+        item.icon = "RIGHTARROW" if item.hide else "DOWNARROW_HLT"
         current_parent = item.name
-        for pose in robots_dict[model_name]:
+        for pose in value:
             item = modelsPosesColl.add()
             item.parent = current_parent
-            item.name = model_name + '_' + pose["posename"]
+            item.name = f'{model_name}_' + pose["posename"]
             item.label = pose["posename"]
             item.path = pose["robotpath"]
             item.type = "robot_pose"
@@ -387,12 +386,8 @@ def loadModelsAndPoses():
             search_path = pose["robotpath"]
             if os.path.split(search_path)[-1] == "smurf":
                 search_path = os.path.dirname(search_path)
-            for file in glob.glob(
-                search_path + "/**/" + model_name + "_" + pose['posename'] + ".*"
-            ) + glob.glob(search_path + "/" + model_name + "_" + pose['posename'] + ".*"):
-                if (os.path.splitext(file)[-1].lower() == ".stl") or (
-                    os.path.splitext(file)[-1].lower() == ".obj"
-                ):
+            for file in (glob.glob(f"{search_path}/**/{model_name}_" + pose['posename'] + ".*") + glob.glob(f"{search_path}/{model_name}_" + pose['posename'] + ".*")):
+                if os.path.splitext(file)[-1].lower() in [".stl", ".obj"]:
                     item.model_file = os.path.join(search_path, file)
                 if os.path.splitext(file)[-1].lower() == ".png":
                     item.preview = os.path.join(search_path, file)
@@ -417,22 +412,18 @@ class ReloadModelsAndPosesOperator(bpy.types.Operator):
         loadModelsAndPoses()
         modelsPosesColl = bUtils.getPhobosPreferences().models_poses
         for model_pose in modelsPosesColl:
-            if model_pose.name not in bpy.data.images.keys():
-                if model_pose.type == 'robot_name':
-                    bpy.data.images.new(model_pose.name, 0, 0)
-                elif 'robot_pose':
-                    if model_pose.preview != '':
-                        if os.path.split(model_pose.preview)[-1] in bpy.data.images.keys():
-                            bpy.data.images[os.path.split(model_pose.preview)[-1]].reload()
-                        im = bpy.data.images.load(model_pose.preview)
-                        model_pose.name = im.name
-                        # im.name = model_pose.name
-                        im.gl_load(0, bgl.GL_LINEAR, bgl.GL_LINEAR)
-                    else:
-                        bpy.data.images.new(model_pose.name, 0, 0)
-            else:
+            if model_pose.name in bpy.data.images.keys():
                 bpy.data.images[model_pose.name].reload()
                 bpy.data.images[model_pose.name].gl_load(0, bgl.GL_LINEAR, bgl.GL_LINEAR)
+            elif model_pose.type != 'robot_name' and model_pose.preview != '':
+                if os.path.split(model_pose.preview)[-1] in bpy.data.images.keys():
+                    bpy.data.images[os.path.split(model_pose.preview)[-1]].reload()
+                im = bpy.data.images.load(model_pose.preview)
+                model_pose.name = im.name
+                # im.name = model_pose.name
+                im.gl_load(0, bgl.GL_LINEAR, bgl.GL_LINEAR)
+            else:
+                bpy.data.images.new(model_pose.name, 0, 0)
         return {'FINISHED'}
 
 
@@ -499,7 +490,7 @@ class ImportSelectedLibRobot(Operator):
     )
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """
 
         Args:
@@ -644,20 +635,20 @@ class CreateRobotInstance(Operator):
             return {"FINISHED"}
         with open(os.path.join(os.path.dirname(defs.__file__), "RobotLib.yml"), "r") as f:
             robot_lib = json.loads(f.read())
-        root = links.createLink(1.0, name=self.robName + "::" + self.bakeObj)
+        root = links.createLink(1.0, name=f"{self.robName}::{self.bakeObj}")
         root["model/name"] = self.bakeObj
         root["entity/name"] = self.robName
         root["isInstance"] = True
         bpy.ops.import_mesh.stl(filepath=os.path.join(robot_lib[self.bakeObj], "bake.stl"))
         bpy.ops.view3d.snap_selected_to_cursor(use_offset=False)
         obj = context.active_object
-        obj.name = self.robName + "::visual"
+        obj.name = f"{self.robName}::visual"
         obj.phobostype = "visual"
         eUtils.parentObjectsTo(obj, root)
         return {"FINISHED"}
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """
 
         Args:
@@ -688,7 +679,7 @@ class ExportCurrentPoseOperator(Operator):
     decimate_angle_limit : FloatProperty(name="Angle Limit", default=5)
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """
 
         Args:
@@ -821,7 +812,7 @@ class ExportAllPosesOperator(Operator):
     decimate_angle_limit : FloatProperty(name="Angle Limit", default=5)
 
     @classmethod
-    def poll(self, context):
+    def poll(cls, context):
         """
 
         Args:
@@ -906,15 +897,14 @@ class ExportAllPosesOperator(Operator):
         objectlist = sUtils.getChildren(root, selected_only=True, include_hidden=False)
         sUtils.selectObjects(objectlist)
         poses = models.getPoses(root['model/name'])
-        i = 1
-        for pose in poses:
+        for i, pose in enumerate(poses, start=1):
             sUtils.selectObjects([root] + objectlist, clear=True, active=0)
             models.loadPose(root['model/name'], pose)
             parameter = self.decimate_ratio
-            if self.decimate_type == 'UNSUBDIV':
-                parameter = self.decimate_iteration
-            elif self.decimate_type == 'DISSOLVE':
+            if self.decimate_type == 'DISSOLVE':
                 parameter = self.decimate_angle_limit
+            elif self.decimate_type == 'UNSUBDIV':
+                parameter = self.decimate_iteration
             exporter.bakeModel(
                 objectlist,
                 root['model/name'],
@@ -923,7 +913,6 @@ class ExportAllPosesOperator(Operator):
                 decimate_parameter=parameter,
             )
             display.setProgress(i / len(poses))
-            i += 1
         display.endProgress()
         sUtils.selectObjects([root] + objectlist, clear=True, active=0)
         bpy.ops.scene.reload_models_and_poses_operator()

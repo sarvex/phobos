@@ -123,15 +123,24 @@ if __name__ == '__main__':
             distconffile.write(blender_version + ' # Blender version\n')
 
     if print_info:
-        print('''
+        print(
+            (
+                '''
 Debug information for Phobos:
   - Blender version {} (installed in {})
   - Python version {} (located in {})
   - Python site packages are in {}:
     - {}
-              '''.format(blender_version, blender_path, python_version,
-                         python_executable, python_package_path,
-                         '\n    - '.join(package for package in os.listdir(python_package_path))))
+              '''.format(
+                    blender_version,
+                    blender_path,
+                    python_version,
+                    python_executable,
+                    python_package_path,
+                    '\n    - '.join(os.listdir(python_package_path)),
+                )
+            )
+        )
         sys.exit(0)
 
     if install_to:
@@ -148,7 +157,7 @@ Debug information for Phobos:
               'Aborting installation.')
         sys.exit(1)
     else:
-        print('Copied addon files to ' + addonpath + '.')
+        print(f'Copied addon files to {addonpath}.')
 
     shutil.copy2(path.join(phoboshome, 'installation.conf'),
                  path.join(addonpath, 'installation.conf'))

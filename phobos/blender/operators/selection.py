@@ -130,7 +130,7 @@ class GotoObjectOperator(Operator):
         Returns:
 
         """
-        log("Jumping to object " + self.objectname + ".", 'DEBUG')
+        log(f"Jumping to object {self.objectname}.", 'DEBUG')
 
         # switch the scene if the object is anywhere else
         scene = None
@@ -140,7 +140,7 @@ class GotoObjectOperator(Operator):
                     scene = sce
                     break
             else:
-                log("Could not find scene of object {}. Aborted.".format(self.objectname), 'ERROR')
+                log(f"Could not find scene of object {self.objectname}. Aborted.", 'ERROR')
                 return {'CANCELLED'}
             bUtils.switchToScene(scene.name)
 
@@ -167,14 +167,7 @@ class SelectRootOperator(Operator):
         Returns:
 
         """
-        roots = set()
-
-        # add root object of each selected object
-        for obj in context.selected_objects:
-            roots.add(sUtils.getRoot(obj))
-
-        # select all found root objects
-        if roots:
+        if roots := {sUtils.getRoot(obj) for obj in context.selected_objects}:
             # toggle layer to make objects visible
             for root in roots:
                 bUtils.setObjectLayersActive(root, extendlayers=True)
@@ -221,16 +214,14 @@ class SelectModelOperator(Operator):
         """
         selection = []
         if self.modelname:
-            log("phobos: Selecting model" + self.modelname, "INFO")
+            log(f"phobos: Selecting model{self.modelname}", "INFO")
             roots = sUtils.getRoots()
             for root in roots:
                 if nUtils.getModelName(root) == self.modelname:
                     selection = sUtils.getChildren(root)
         else:
             log("No model name provided, deriving from selection...", "INFO")
-            roots = set()
-            for obj in bpy.context.selected_objects:
-                roots.add(sUtils.getRoot(obj))
+            roots = {sUtils.getRoot(obj) for obj in bpy.context.selected_objects}
             for root in list(roots):
                 selection.extend(sUtils.getChildren(root))
         sUtils.selectObjects(list(selection), True)

@@ -134,8 +134,10 @@ try:
             a = [0, 1, 2]
             b = [3, 4, 5]
             result = [[0., 0., 0.], [3., 4., 5.], [6., 8., 10.]]
-            self.assertListEqual(list(list(elem) for elem in
-                                      phobos.utils.general.outerProduct(a, b)), result)
+            self.assertListEqual(
+                [list(elem) for elem in phobos.utils.general.outerProduct(a, b)],
+                result,
+            )
 
     class TestIOUtils(unittest.TestCase):
 

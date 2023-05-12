@@ -343,7 +343,7 @@ class Models_Poses_UIList(bpy.types.UIList):
         for idx, im in enumerate(images):
             if im.name in modelsPosesColl.keys():
                 curr_model = modelsPosesColl[im.name]
-                if curr_model.hide and not (curr_model.type == "robot_name"):
+                if curr_model.hide and curr_model.type != "robot_name":
                     flt_flags[idx] &= ~self.bitflag_filter_item
             else:
                 flt_flags[idx] &= ~self.bitflag_filter_item
@@ -598,25 +598,25 @@ class PhobosMatrixPanel(bpy.types.Panel):
         # add all location properties
         for locprop in dir(obj.phobosmatrixinfo):
             if locprop.startswith('loc') and locprop.endswith('local'):
-                localcol.prop(obj.phobosmatrixinfo, locprop, text=locprop[4] + ' location')
+                localcol.prop(obj.phobosmatrixinfo, locprop, text=f'{locprop[4]} location')
 
         localcol.separator()
         # add all rotation properties
         for rotatprop in dir(obj.phobosmatrixinfo):
             if rotatprop.startswith('rot') and rotatprop.endswith('local'):
-                localcol.prop(obj.phobosmatrixinfo, rotatprop, text=rotatprop[4] + ' rotation')
+                localcol.prop(obj.phobosmatrixinfo, rotatprop, text=f'{rotatprop[4]} rotation')
 
         # world data second
         worldcol.label(text='world', icon='WORLD')
         # add all location properties
         for locprop in dir(obj.phobosmatrixinfo):
             if locprop.startswith('loc') and locprop.endswith('world'):
-                worldcol.prop(obj.phobosmatrixinfo, locprop, text=locprop[4] + ' location')
+                worldcol.prop(obj.phobosmatrixinfo, locprop, text=f'{locprop[4]} location')
         worldcol.separator()
         # add all rotation properties
         for rotatprop in dir(obj.phobosmatrixinfo):
             if rotatprop.startswith('rot') and rotatprop.endswith('world'):
-                worldcol.prop(obj.phobosmatrixinfo, rotatprop, text=rotatprop[4] + ' rotation')
+                worldcol.prop(obj.phobosmatrixinfo, rotatprop, text=f'{rotatprop[4]} rotation')
 
 
 class PhobosObjectInformationPanel(bpy.types.Panel):
@@ -652,12 +652,10 @@ class PhobosObjectInformationPanel(bpy.types.Panel):
 
         layout = self.layout
         obj = context.active_object
-        modelname = ''
         rootname = ''
 
         root = sUtils.getRoot(obj)
-        if 'model/name' in root:
-            modelname = root['model/name']
+        modelname = root['model/name'] if 'model/name' in root else ''
         rootname = root.name
 
         row = layout.row()
@@ -730,9 +728,7 @@ class PhobosModelWarningsPanel(bpy.types.Panel):
         layout = self.layout
         obj = context.active_object
 
-        # show naming errors in the UI
-        errors = validation.validateObjectNames(obj)
-        if errors:
+        if errors := validation.validateObjectNames(obj):
             layout.separator()
             errorname = ""
             for error in sorted(errors):
@@ -753,20 +749,18 @@ class PhobosModelWarningsPanel(bpy.types.Panel):
                 col3.operator(error.operator, text="Fix")
 
 
-ignoredProps = set(
-    [
-        'cycles',
-        'cycles_visibility',
-        'phobosmatrixinfo',
-        'phobostype',
-        'name',
-        'pose',
-        'size',
-        'scale',
-        'parent',
-        'approxcollision',
-    ]
-)
+ignoredProps = {
+    'cycles',
+    'cycles_visibility',
+    'phobosmatrixinfo',
+    'phobostype',
+    'name',
+    'pose',
+    'size',
+    'scale',
+    'parent',
+    'approxcollision',
+}
 
 
 class PhobosPropertyInformationPanel(bpy.types.Panel):
@@ -868,9 +862,7 @@ class PhobosPropertyInformationPanel(bpy.types.Panel):
           dict: entry in .. data:supportedProps
 
         """
-        if item in supportedProps:
-            return supportedProps[item]
-        return {'infoparams': {}}
+        return supportedProps[item] if item in supportedProps else {'infoparams': {}}
 
     def draw_header(self, context):
         """
@@ -911,7 +903,7 @@ class PhobosPropertyInformationPanel(bpy.types.Panel):
         categories = {}
 
         # generate general category only if needed
-        props = set([key for key in proplist if not isinstance(dictprops[key], dict)])
+        props = {key for key in proplist if not isinstance(dictprops[key], dict)}
         if props - ignoredProps:
             box = layout.box()
             row = box.split()
@@ -931,8 +923,8 @@ class PhobosPropertyInformationPanel(bpy.types.Panel):
                 guiparams['object'] = obj
                 if prop in obj:
                     guiparams['customprop'] = prop
-                elif obj.phobostype + '/' + prop in obj:
-                    guiparams['customprop'] = obj.phobostype + '/' + prop
+                elif f'{obj.phobostype}/{prop}' in obj:
+                    guiparams['customprop'] = f'{obj.phobostype}/{prop}'
                 self.addProp([prop], [value], categories['general'], [guiparams])
                 continue
 
@@ -963,7 +955,7 @@ class PhobosPropertyInformationPanel(bpy.types.Panel):
 
             # add each subproperty to the layout
             for prop_t2 in sorted(dictprops[category]):
-                guiparams = self.checkParams(category + '/' + prop_t2)
+                guiparams = self.checkParams(f'{category}/{prop_t2}')
 
                 value = dictprops[category][prop_t2]
 
@@ -971,18 +963,16 @@ class PhobosPropertyInformationPanel(bpy.types.Panel):
                 if prop_t2 in ignoredProps:
                     continue
 
-                # is it another dictionary with values?
                 elif isinstance(value, dict):
                     # gather keys, guiparams etc as lists
                     props = value.keys()
                     values = [value[key] for key in props]
-                    paramkeys = [category + '/' + prop_t2 + '/' + propkey for propkey in props]
+                    paramkeys = [f'{category}/{prop_t2}/{propkey}' for propkey in props]
                     paramlist = [self.checkParams(key) for key in paramkeys]
-                    props = [prop_t2 + '/' + propkey for propkey in props]
+                    props = [f'{prop_t2}/{propkey}' for propkey in props]
 
                     # add the properties from the list
                     self.addProp(props, values, categories[category], paramlist)
-                # just another value
                 else:
                     self.addProp([prop_t2], [value], categories[category], [guiparams])
 
@@ -1215,14 +1205,14 @@ class PhobosExportPanel(bpy.types.Panel):
         cmodel = inlayout.column(align=True)
         cmodel.label(text="Models")
         for entitytype in ioUtils.getEntityTypesForExport():
-            typename = "export_entity_" + entitytype
+            typename = f"export_entity_{entitytype}"
             cmodel.prop(bpy.context.scene, typename)
 
         cmesh = inlayout.column(align=True)
         cmesh.label(text="Meshes")
         for meshtype in sorted(meshes.mesh_types):
             if 'export' in meshes.mesh_types[meshtype]:
-                typename = "export_mesh_" + meshtype
+                typename = f"export_mesh_{meshtype}"
                 cmesh.prop(bpy.context.scene, typename)
         cmesh.prop(bpy.context.scene.phobosexportsettings, 'outputMeshtype')
         cmesh.prop(bpy.context.scene.phobosexportsettings, 'outputPathtype')
@@ -1231,7 +1221,7 @@ class PhobosExportPanel(bpy.types.Panel):
         cscene = inlayout.column(align=True)
         cscene.label(text="Scenes")
         for scenetype in ioUtils.getSceneTypesForExport():
-            typename = "export_scene_" + scenetype
+            typename = f"export_scene_{scenetype}"
             cscene.prop(bpy.context.scene, typename)
 
         # additional ros guiparams
@@ -1426,7 +1416,7 @@ def get_operator_manuals():
     # CHECK does the linking work with the new wiki?
     url_manual_prefix = "https://github.com/dfki-ric/phobos/wiki/Operators#"
     url_manual_ops = tuple(
-        ('bpy.ops.phobos.' + opname, opname.replace('_', '-'))
+        (f'bpy.ops.phobos.{opname}', opname.replace('_', '-'))
         for opname in dir(bpy.ops.phobos)
         if not opname.startswith("__")
     )
@@ -1532,17 +1522,17 @@ def register():
     # add i/o settings to scene to preserve settings for every model
     for meshtype in meshes.mesh_types:
         if 'export' in meshes.mesh_types[meshtype]:
-            typename = "export_mesh_" + meshtype
+            typename = f"export_mesh_{meshtype}"
             setattr(bpy.types.Scene, typename, BoolProperty(name=meshtype, default=False))
 
     for entitytype in entities.entity_types:
         if 'export' in entities.entity_types[entitytype]:
-            typename = "export_entity_" + entitytype
+            typename = f"export_entity_{entitytype}"
             setattr(bpy.types.Scene, typename, BoolProperty(name=entitytype, default=False))
 
     for scenetype in scenes.scene_types:
         if 'export' in scenes.scene_types[scenetype]:
-            typename = "export_scene_" + scenetype
+            typename = f"export_scene_{scenetype}"
             setattr(bpy.types.Scene, typename, BoolProperty(name=scenetype, default=False))
 
     # Load custom icons

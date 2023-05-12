@@ -42,8 +42,10 @@ def get_robot_names(scene, context):
     Returns:
 
     """
-    robot_names = [(nUtils.getModelName(root),) * 3 for root in sUtils.getRootsOfSelection()]
-    return robot_names
+    return [
+        (nUtils.getModelName(root),) * 3
+        for root in sUtils.getRootsOfSelection()
+    ]
 
 
 # currently only needed here, no point in putting in in poses.py
@@ -58,8 +60,7 @@ def get_pose_names(scene, context):
 
     """
     poselist = poses.getPoses(current_robot_name)
-    pose_items = [(pose,) * 3 for pose in poselist]
-    return pose_items
+    return [(pose,) * 3 for pose in poselist]
 
 
 # class StorePoseOperator2(Operator):
@@ -211,16 +212,13 @@ def draw_preview_callback(self):
     area = None
     if bpy.context.area.type != 'VIEW_3D':
         return bpy.context.area
-    else:
-        for oWindow in bpy.context.window_manager.windows:
-            oScreen = oWindow.screen
-            for oArea in oScreen.areas:
-                if oArea.type == 'VIEW_3D':
-                    area = oArea
+    for oWindow in bpy.context.window_manager.windows:
+        oScreen = oWindow.screen
+        for oArea in oScreen.areas:
+            if oArea.type == 'VIEW_3D':
+                area = oArea
 
     modelsPosesColl = bUtils.getPhobosPreferences().models_poses
-    activeModelPoseIndex = bpy.context.scene.active_ModelPose
-
     if (len(modelsPosesColl) > 0) and area:
 
         # Draw a textured quad
@@ -230,7 +228,9 @@ def draw_preview_callback(self):
         area_heights = [
             region.height for region in bpy.context.area.regions if region.type == 'WINDOW'
         ]
-        if (len(area_widths) > 0) and (len(area_heights) > 0):
+        if area_widths and area_heights:
+
+            activeModelPoseIndex = bpy.context.scene.active_ModelPose
 
             active_preview = modelsPosesColl[bpy.data.images[activeModelPoseIndex].name]
             im = bpy.data.images[activeModelPoseIndex]
@@ -274,13 +274,13 @@ def draw_preview_callback(self):
             # Draw Image
             bgl.glColor4f(1, 1, 1, 1)
             bgl.glTexCoord2f(0, 0)
-            bgl.glVertex2i(int(tex_start_x), int(tex_start_y))
+            bgl.glVertex2i(tex_start_x, tex_start_y)
             bgl.glTexCoord2f(0, 1)
-            bgl.glVertex2i(int(tex_start_x), int(tex_end_y))
+            bgl.glVertex2i(tex_start_x, int(tex_end_y))
             bgl.glTexCoord2f(1, 1)
             bgl.glVertex2i(int(tex_end_x), int(tex_end_y))
             bgl.glTexCoord2f(1, 0)
-            bgl.glVertex2i(int(tex_end_x), int(tex_start_y))
+            bgl.glVertex2i(int(tex_end_x), tex_start_y)
             bgl.glEnd()
 
             # restore opengl defaults
@@ -310,20 +310,20 @@ class ChangePreviewOperator(bpy.types.Operator):
         if bpy.data.images[activeModelPoseIndex].name in modelsPosesColl.keys():
             activeModelPose = modelsPosesColl[bpy.data.images[activeModelPoseIndex].name]
             if activeModelPose.type != "robot_name":
-                # show on view_3d
-                root = None
-                if context.view_layer.objects.active != None:
+                if context.view_layer.objects.active is None:
+                    root = None
+                else:
                     root = sUtils.getRoot(context.view_layer.objects.active)
                 if (
                     not bpy.context.scene.preview_visible
-                    and (bpy.data.images[activeModelPoseIndex].type == 'IMAGE')
+                    and bpy.data.images[activeModelPoseIndex].type == 'IMAGE'
                     and (
                         root is None
                         or not sUtils.isRoot(root)
-                        or not (
-                            modelsPosesColl[bpy.data.images[activeModelPoseIndex].name]
-                            != root["model/name"]
-                        )
+                        or modelsPosesColl[
+                            bpy.data.images[activeModelPoseIndex].name
+                        ]
+                        == root["model/name"]
                         or len(bpy.context.selected_objects) == 0
                     )
                 ):

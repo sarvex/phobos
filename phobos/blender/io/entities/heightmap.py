@@ -59,13 +59,13 @@ def deriveEntity(entity, outpath):
         # CHECK are the heightmaps exported to the right directory?
         if bpy.data.window_managers[0].useObj:
             ioUtils.exportObj(heightmap_outpath, heightmapMesh)
-            filename = os.path.join("heightmaps", exMesh.name + ".obj")
+            filename = os.path.join("heightmaps", f"{exMesh.name}.obj")
         elif bpy.data.window_managers[0].useStl:
             ioUtils.exportStl(heightmap_outpath, heightmapMesh)
-            filename = os.path.join("heightmaps", exMesh.name + ".stl")
+            filename = os.path.join("heightmaps", f"{exMesh.name}.stl")
         elif bpy.data.window_managers[0].useDae:
             ioUtils.exportDae(heightmap_outpath, heightmapMesh)
-            filename = os.path.join("heightmaps", exMesh.name + ".dae")
+            filename = os.path.join("heightmaps", f"{exMesh.name}.dae")
         else:
             log("No mesh export type checked! Aborting heightmap export.", "ERROR")
             return {}
@@ -73,7 +73,7 @@ def deriveEntity(entity, outpath):
         heightmapMesh.modifiers["displace_heightmap"].show_viewport = True
         heightmapMesh.data = oldMesh
         bpy.data.meshes.remove(exMesh)
-        entry = {
+        return {
             "name": heightmap["entity/name"],
             "type": "mesh",
             "file": filename,
@@ -87,7 +87,7 @@ def deriveEntity(entity, outpath):
             os.path.join(os.path.split(bpy.data.filepath)[0], heightmap["image"])
         )
         shutil.copy2(imagepath, heightmap_outpath)
-        entry = {
+        return {
             "name": heightmap["entity/name"],
             "type": "heightmap",
             "file": os.path.join("heightmaps", os.path.basename(imagepath)),
@@ -98,7 +98,6 @@ def deriveEntity(entity, outpath):
             "position": entitypose["translation"],
             "rotation": entitypose["rotation_quaternion"],
         }
-    return entry
 
 
 # information for the registration in the exporter

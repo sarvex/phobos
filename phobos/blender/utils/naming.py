@@ -70,12 +70,12 @@ def safelyName(obj, name, phobostype=None):
 
     if obj.phobostype == phobostype and obj.name != objectname:
         objectname = getUniqueName(objectname, bpy.data.objects)
-        log("Acquired unique name for Blender object: " + objectname, 'DEBUG')
+        log(f"Acquired unique name for Blender object: {objectname}", 'DEBUG')
         obj.name = objectname
 
     # use custom property if the object.name can not be set properly
     if objectname != name:
-        obj[phobostype + '/name'] = name
+        obj[f'{phobostype}/name'] = name
     #elif phobostype + '/name' in obj:
     #    del obj[phobostype + '/name']
 
@@ -102,7 +102,7 @@ def getObjectName(obj, phobostype=None):
         return None
     nametype = phobostype if phobostype else obj.phobostype
     try:
-        return obj[nametype + "/name"]
+        return obj[f"{nametype}/name"]
     except KeyError:
         return stripNamespaceFromName(obj.name)
 
@@ -133,7 +133,7 @@ def getModelName(obj):
       : str -- modelname of the object or object name with '*' prepended if undefined
 
     """
-    return obj['model/name'] if 'model/name' in obj else '*' + obj.name
+    return obj['model/name'] if 'model/name' in obj else f'*{obj.name}'
 
 
 def replaceNameElement(prop, old, new):
@@ -162,7 +162,7 @@ def addNamespaceToName(name, namespace):
     Returns:
 
     """
-    return namespace + "::" + name
+    return f"{namespace}::{name}"
 
 
 def addNamespace(obj, namespace=None):
@@ -212,7 +212,7 @@ def toggleNamespace(obj, namespace=''):
     Returns:
 
     """
-    if not namespace or namespace + '::' in obj.name:
+    if not namespace or f'{namespace}::' in obj.name:
         removeNamespace(obj)
     else:
         addNamespace(obj, namespace)
@@ -227,8 +227,8 @@ def gatherNamespaces(separator='::'):
     Returns:
 
     """
-    namespaces = []
-    for obj in bpy.data.objects:
-        if separator in obj.name:
-            namespaces.append(obj.name.split(separator)[0])
-    return namespaces
+    return [
+        obj.name.split(separator)[0]
+        for obj in bpy.data.objects
+        if separator in obj.name
+    ]

@@ -50,7 +50,7 @@ def deriveSensor(obj, names=False, objectlist=[], logging=False):
             props['link'] = sUtils.getEffectiveParent(obj, objectlist=objectlist)
     except KeyError:
         if logging:
-            log("Missing data in sensor " + obj.name, "ERROR")
+            log(f"Missing data in sensor {obj.name}", "ERROR")
         return None
     return props
 
@@ -129,9 +129,9 @@ def createSensor(sensor, reference, origin=mathutils.Matrix()):
             pmaterial=sensor['material'],
             phobostype='sensor',
         )
-        # use resource name provided as: "resource:whatever_name"
-        resource_obj = ioUtils.getResource(['sensor'] + sensor['shape'].split('://')[1].split('_'))
-        if resource_obj:
+        if resource_obj := ioUtils.getResource(
+            ['sensor'] + sensor['shape'].split('://')[1].split('_')
+        ):
             log("Assigned resource mesh and materials to new sensor object.", 'DEBUG')
             newsensor.data = resource_obj.data
             newsensor.scale = (sensor['size'],) * 3

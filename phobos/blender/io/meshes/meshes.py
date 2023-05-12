@@ -41,7 +41,7 @@ def exportMesh(obj, path, meshtype):
     tmpobject = bUtils.createPrimitive(objname, 'box', (1.0, 1.0, 1.0))
     # copy the mesh here
     tmpobject.data = obj.data
-    outpath = os.path.join(path, obj.data.name + "." + meshtype)
+    outpath = os.path.join(path, f"{obj.data.name}.{meshtype}")
     if meshtype == 'obj':
         axis_forward = bpy.context.scene.phobosexportsettings.obj_axis_forward
         axis_up = bpy.context.scene.phobosexportsettings.obj_axis_up
@@ -83,7 +83,7 @@ def importMesh(filepath, meshtype):
     try:
         mesh_type_dict[meshtype]['import'](filepath)
     except KeyError:
-        log('Unknown mesh type: ' + meshtype, 'ERROR')
+        log(f'Unknown mesh type: {meshtype}', 'ERROR')
 
     # find the newly imported obj
     newgeom = None

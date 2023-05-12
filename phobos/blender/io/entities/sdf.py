@@ -103,7 +103,7 @@ class xmlTagger(object):
         if self.indentation > self.initial:
             lasttag = self.workingTags.pop(-1)
             self.indentation -= 1
-            self.output.append(self.ind() + "</" + lasttag + ">\n")
+            self.output.append(f"{self.ind()}</{lasttag}" + ">\n")
         else:
             IndentationError()
 
@@ -125,13 +125,13 @@ class xmlTagger(object):
 
         # create parameter strings by unpacking dictionary
         if attribs:
-            parameters = [key + '="' + str(attribs[key]) + '" ' for key in attribs.keys()]
+            parameters = [f'{key}="{str(attribs[key])}" ' for key in attribs.keys()]
             # remove trailing whitespace
             parameters[-1] = parameters[-1][:-1]
         else:
             parameters = {}
 
-        line += self.ind() + "<" + tag + (" " if len(parameters) > 0 else "")
+        line += f"{self.ind()}<{tag}" + (" " if len(parameters) > 0 else "")
 
         # add optional parameters
         if len(parameters) > 0:
@@ -164,7 +164,7 @@ class xmlTagger(object):
         Returns:
 
         """
-        self.output.append(self.ind() + '<' + str(tag) + '>' + str(value) + '</' + tag + '>\n')
+        self.output.append(f'{self.ind()}<{str(tag)}>{str(value)}</{tag}' + '>\n')
 
     def get_indent(self):
         """TODO Missing documentation"""
@@ -222,17 +222,8 @@ def exportSDFPose(relativepose, indentation, poseobject=None, relative=False):
     tagger = xmlTagger(initial=indentation)
 
     # relative poses are written to file as they are
-    if not poseobject:
-        if relativepose:
-            posedata = relativepose
-        else:
-            posedata = {'translation': [0., 0., 0.], 'rotation_euler': [0., 0., 0.]}
-    # world poses are created by combined transform of the pose
-    else:
-        if relative:
-            matrix = poseobject.matrix_local
-        else:
-            matrix = poseobject.matrix_world
+    if poseobject:
+        matrix = poseobject.matrix_local if relative else poseobject.matrix_world
         # FINAL remove when done
         # matrix = getCombinedTransform(poseobject, getRoot(poseobject))
         posedata = {
@@ -244,6 +235,10 @@ def exportSDFPose(relativepose, indentation, poseobject=None, relative=False):
         }
         posedata = gUtils.roundFloatsInDict(posedata, getExpSettings().decimalPlaces)
 
+    elif relativepose:
+        posedata = relativepose
+    else:
+        posedata = {'translation': [0., 0., 0.], 'rotation_euler': [0., 0., 0.]}
     # only translation and euler rotation are required
     tra = posedata['translation']
     rot = posedata['rotation_euler']
@@ -728,9 +723,7 @@ def exportSDFJoint(jointdict, indentation):
     # FINAL remove when all joints are finished
     if sdftype == 'TODO':
         log(
-            "Joint type '{}' at joint '{}' not supported yet.".format(
-                jointdict['type'], jointdict['name']
-            ),
+            f"Joint type '{jointdict['type']}' at joint '{jointdict['name']}' not supported yet.",
             'ERROR',
         )
     tagger.attrib('parent', jointdict['parent'])
@@ -759,10 +752,10 @@ def exportSDFJoint(jointdict, indentation):
             if 'lower' in jointdict['limits']:
                 tagger.attrib('lower', jointdict['limits']['lower'])
             else:
-                log("Lower limit is missing for joint '{}'.".format(jointdict['name']), 'WARNING')
+                log(f"Lower limit is missing for joint '{jointdict['name']}'.", 'WARNING')
                 tagger.attrib('lower', '')
             if 'upper' in jointdict['limits'].keys():
-                log("Upper limit is missing for joint '{}'.".format(jointdict['name']), 'WARNING')
+                log(f"Upper limit is missing for joint '{jointdict['name']}'.", 'WARNING')
                 tagger.attrib('upper', jointdict['limits']['upper'])
             else:
                 tagger.attrib('upper', '')
@@ -863,9 +856,7 @@ def exportSDFSensor(sensordict, indentation):
         'force_torque',
     ]:
         log(
-            "Sensor type not supported by SDF '{}'! Skipping sensor {}...".format(
-                sensordict['type'], sensordict['name']
-            )
+            f"Sensor type not supported by SDF '{sensordict['type']}'! Skipping sensor {sensordict['name']}..."
         )
         return ''
 
@@ -998,18 +989,18 @@ def exportSDFSensor(sensordict, indentation):
                 tagger.attrib(
                     'custom_rpy',
                     '{} {} {}'.format(
-                        *[i for i in imu['orientation_reference_frame']['custom_rpy']]
+                        *list(imu['orientation_reference_frame']['custom_rpy'])
                     ),
                 )
-                # TODO add support for parent_frame
+                            # TODO add support for parent_frame
             if 'grav_dir_x' in imu['orientation_reference_frame']:
                 tagger.attrib(
                     'grav_dir_x',
                     '{} {} {}'.format(
-                        *[i for i in imu['orientation_reference_frame']['grav_dir_x']]
+                        *list(imu['orientation_reference_frame']['grav_dir_x'])
                     ),
                 )
-                # TODO add support for parent_frame
+                            # TODO add support for parent_frame
             tagger.ascend()
         if 'topic' in imu:
             tagger.attrib('topic', imu['topic'])
@@ -1136,10 +1127,7 @@ def exportGazeboModelConf(model):
     SubElement(modelconf, 'sdf', version=sdfversion).text = model['name'] + '.sdf'
 
     phobosprefs = getPhobosPreferences()
-    if phobosprefs.username != '':
-        username = phobosprefs.username
-    else:
-        username = "Undefined"
+    username = phobosprefs.username if phobosprefs.username != '' else "Undefined"
     if phobosprefs.useremail != '':
         useremail = phobosprefs.useremail
     else:
@@ -1164,7 +1152,7 @@ def exportSDF(model, filepath):
     Returns:
 
     """
-    log("Export SDF (version {}) to {}.".format(sdfversion, filepath), 'INFO')
+    log(f"Export SDF (version {sdfversion}) to {filepath}.", 'INFO')
     filename = os.path.join(filepath, model['name'] + '.sdf')
 
     if getExpSettings().export_sdf_model_config:
@@ -1177,7 +1165,7 @@ def exportSDF(model, filepath):
     if 'sdf' in annotationdict:
         for category in annotationdict['sdf']:
             for list_obj in annotationdict['sdf'][category]:
-                model[category + 's'][list_obj['name']].update(list_obj)
+                model[f'{category}s'][list_obj['name']].update(list_obj)
         del annotationdict['sdf']
 
     modelconf = exportGazeboModelConf(model)
@@ -1262,10 +1250,11 @@ def exportSDF(model, filepath):
         for linkkey in model['links']:
             link = model['links'][linkkey]
             linkobj = link['object']
-            sensors = []
-            for sens in model['sensors']:
-                if model['sensors'][sens]['link'] == linkkey:
-                    sensors.append(model['sensors'][sens])
+            sensors = [
+                model['sensors'][sens]
+                for sens in model['sensors']
+                if model['sensors'][sens]['link'] == linkkey
+            ]
             xml.write(
                 exportSDFLink(
                     link, linkobj, modelname, model['materials'], sensors, xml.get_indent()
@@ -1280,22 +1269,21 @@ def exportSDF(model, filepath):
             xml.write(exportSDFJoint(joint, xml.get_indent()))
         log("Joints exported.", 'DEBUG')
 
-        # plugin
-        # OPT: xml.descend('plugin', attribs={'name': ..., 'filename': ...)
-        # xml.ascend()
+            # plugin
+            # OPT: xml.descend('plugin', attribs={'name': ..., 'filename': ...)
+            # xml.ascend()
 
-        # gripper
-        # OPT: xml.descend('gripper', {'name': ...})
-        # OPT: xml.descend('grasp_check')
-        # OPT: xml.attrib('detach_steps')
-        # OPT: xml.attrib('attach_steps')
-        # OPT: xml.attrib('min_contact_count')
-        # xml.ascend()
-        # REQ/OPT?: xml.attrib('gripper_link')
-        # REQ: xml.attrib('palm_link')
-        # xml.ascend()
+            # gripper
+            # OPT: xml.descend('gripper', {'name': ...})
+            # OPT: xml.descend('grasp_check')
+            # OPT: xml.attrib('detach_steps')
+            # OPT: xml.attrib('attach_steps')
+            # OPT: xml.attrib('min_contact_count')
+            # xml.ascend()
+            # REQ/OPT?: xml.attrib('gripper_link')
+            # REQ: xml.attrib('palm_link')
+            # xml.ascend()
 
-    # FINAL remove this when finished
     except Exception:
         import sys
         import traceback
@@ -1307,21 +1295,21 @@ def exportSDF(model, filepath):
     finally:
         outputtext = xml.get_output()
 
-        log("Writing model sdf file to {}.".format(filename), 'DEBUG')
+        log(f"Writing model sdf file to {filename}.", 'DEBUG')
         with open(filename, 'w') as outputfile:
             outputfile.writelines(outputtext)
 
         if modelconffile:
-            log("Writing model.config file to {}.".format(modelconffile), 'DEBUG')
+            log(f"Writing model.config file to {modelconffile}.", 'DEBUG')
             with open(modelconffile, 'w') as outputfile:
                 outputfile.write(getIndentedETString(modelconf))
-            # modelconfTree.write(modelconffile, encoding="UTF-8", xml_declaration=True)
+                    # modelconfTree.write(modelconffile, encoding="UTF-8", xml_declaration=True)
 
         if getExpSettings().export_sdf_to_gazebo_models:
             phobosprefs = getPhobosPreferences()
             modelpath = os.path.join(phobosprefs.gazebomodelfolder, modelname)
             log(
-                "Copying model to Gazebo model folder: {}".format(os.path.relpath(modelpath)),
+                f"Copying model to Gazebo model folder: {os.path.relpath(modelpath)}",
                 'INFO',
             )
             if not os.path.exists(modelpath):
@@ -1343,9 +1331,9 @@ def exportSDF(model, filepath):
             log(" Copying meshes to Gazebo models...", 'DEBUG')
             sdfmeshtype = getExpSettings().export_sdf_mesh_type
             meshfolder = os.path.join(os.path.dirname(filepath), 'meshes', sdfmeshtype)
-            for file in glob.glob(meshfolder + "/*." + sdfmeshtype):
+            for file in glob.glob(f"{meshfolder}/*.{sdfmeshtype}"):
                 meshfilename = os.path.basename(file)
-                log("   Copying {} mesh file.".format(meshfilename), 'DEBUG')
+                log(f"   Copying {meshfilename} mesh file.", 'DEBUG')
                 shutil.copy2(file, os.path.join(modelpath, 'meshes', meshfilename))
 
     finishmessage = "Export finished with " + ("no " if not errors else "") + "errors."
@@ -1385,12 +1373,11 @@ def parseSDFInertial(link):
     Returns:
 
     """
-    inertial_dict = {}
     inertial_data = link.find('inertial')
     # Element.find() yields None, not []
     if inertial_data is not None:
         log("   Parsing inertial.", 'DEBUG')
-        inertial_dict['pose'] = parseSDFPose(inertial_data.find('pose'))
+        inertial_dict = {'pose': parseSDFPose(inertial_data.find('pose'))}
         mass = inertial_data.find('mass')
         if mass is not None:
             inertial_dict['mass'] = float(mass.text)
@@ -1409,9 +1396,9 @@ def parseSDFInertial(link):
         print(json.dumps(inertial_dict))
         return inertial_dict
 
-        # TODO add frame support
+            # TODO add frame support
     else:
-        log("   No inertial defined for link {}.".format(link.attrib['name']), 'DEBUG')
+        log(f"   No inertial defined for link {link.attrib['name']}.", 'DEBUG')
         return None
 
 
@@ -1448,11 +1435,11 @@ def parseSDFGeometry(geometry, link, sdfpath):
             filepath = path.join(phobosprefs.gazebomodelfolder, filepath)
         else:
             filepath = path.normpath(path.join(path.dirname(sdfpath), filepath))
-        log("       Filepath for mesh: {}".format(filepath), 'DEBUG')
+        log(f"       Filepath for mesh: {filepath}", 'DEBUG')
 
         if not path.exists(filepath):
             log(
-                "     Mesh file does not exist: {} Replaced mesh with simple box.".format(filepath),
+                f"     Mesh file does not exist: {filepath} Replaced mesh with simple box.",
                 'WARNING',
             )
             geometrydict = {'type': 'box', 'size': [1, 1, 1]}
@@ -1484,18 +1471,16 @@ def parseSDFMaterial(visualname, material):
     Returns:
 
     """
-    materialdict = {}
+    materialdict = {'name': f'mat_{visualname}'}
 
-    # sdf has no material names, so we initialize with visual name
-    materialdict['name'] = 'mat_' + visualname
-
-    sdfannos = {}
     genericparams = [
         elem.tag
         for elem in list(material)
         if elem.tag not in ['ambient', 'diffuse', 'specular', 'emissive', 'shader', 'script']
     ]
-    sdfannos.update({a: gUtils.parse_text(material.find(a).text) for a in genericparams})
+    sdfannos = {} | {
+        a: gUtils.parse_text(material.find(a).text) for a in genericparams
+    }
     # TODO add support
     # materialdict['sdf/script']
     # materialdict['sdf/shader']
@@ -1543,42 +1528,30 @@ def parseSDFLink(link, filepath):
             'battery',
         ]
     ]
-    newlink = {}
-    sdfannos = {}
-    sdfannos.update({a: gUtils.parse_text(link.find(a).text) for a in genericparams})
-
-    newlink['name'] = link.attrib['name']
-    newlink['children'] = []
-
-    # TODO add support for other parameters
-    # velocity_decay
-    # frame
-
-    # We need to reuse this, since the pose in sdf is relative
-    # The pose of all children of the link has to be corrected if they are links
-    newlink['pose'] = parseSDFPose(link.find('pose'))
-
-    # parse inertial
-    inertial = parseSDFInertial(link)
-    if inertial:
+    sdfannos = dict(
+        {a: gUtils.parse_text(link.find(a).text) for a in genericparams}
+    )
+    newlink = {
+        'name': link.attrib['name'],
+        'children': [],
+        'pose': parseSDFPose(link.find('pose')),
+    }
+    if inertial := parseSDFInertial(link):
         newlink['inertial'] = inertial
 
     materials = {}
     for objtype in ['visual', 'collision']:
-        log("   Parsing {} elements...".format(objtype), 'DEBUG')
+        log(f"   Parsing {objtype} elements...", 'DEBUG')
         objectsdict = {}
         i = 1
         for elem in link.iter(objtype):
             if 'name' not in elem.attrib:
                 name = '{0}_{1:01d}_{2}'.format(objtype, i, newlink['name'])
-                log(
-                    "   No name for {} object! Assigning {} instead.".format(objtype, name),
-                    'WARNING',
-                )
+                log(f"   No name for {objtype} object! Assigning {name} instead.", 'WARNING')
                 i += 1
             else:
                 name = elem.attrib['name']
-            log("     {} element {}:".format(objtype[0].upper() + objtype[1:], name), 'DEBUG')
+            log(f"     {objtype[0].upper() + objtype[1:]} element {name}:", 'DEBUG')
 
             elemdict = {'name': name}
             elemsdfannos = {}
@@ -1588,13 +1561,13 @@ def parseSDFLink(link, filepath):
                     for generic in list(elem)
                     if generic.tag not in ['pose', 'frame', 'surface', 'geometry']
                 ]
-                elemsdfannos.update({a: gUtils.parse_text(elem.find(a).text) for a in genparams})
+                elemsdfannos |= {a: gUtils.parse_text(elem.find(a).text) for a in genparams}
                 # TODO implement support for this
                 # elemdict['sdf/frame']
                 elemdict['pose'] = parseSDFPose(elem.find('pose'))
-                # geometry is parsed below
-                # TODO implement support
-                # elemdict['sdf/surface']
+                            # geometry is parsed below
+                            # TODO implement support
+                            # elemdict['sdf/surface']
             else:
                 genparams = [
                     generic.tag
@@ -1602,7 +1575,7 @@ def parseSDFLink(link, filepath):
                     if generic.tag
                     not in ['pose', 'frame', 'geometry', 'meta', 'material', 'plugin']
                 ]
-                elemsdfannos.update({a: gUtils.parse_text(elem.find(a).text) for a in genparams})
+                elemsdfannos |= {a: gUtils.parse_text(elem.find(a).text) for a in genparams}
                 # TODO implement support for this
                 # elemdict['sdf/meta']
                 # elemdict['sdf/frame']
@@ -1624,14 +1597,12 @@ def parseSDFLink(link, filepath):
                     newmat = parseSDFMaterial(name, elem.find('material'))
                     elemdict['material'] = newmat['name']
                     materials[newmat['name']] = newmat
-                # TODO implement support for this
-                # elemdict['sdf/plugin']
+                            # TODO implement support for this
+                            # elemdict['sdf/plugin']
 
             if elem.find('geometry') is None:
                 log(
-                    "   No geometry defined for {} {} in link {}! Skipped..".format(
-                        objtype, name, newlink['name']
-                    ),
+                    f"   No geometry defined for {objtype} {name} in link {newlink['name']}! Skipped..",
                     'ERROR',
                 )
                 continue
@@ -1649,7 +1620,7 @@ def parseSDFLink(link, filepath):
     import json
 
     print(json.dumps(newlink))
-    if newlink == {}:
+    if not newlink:
         log("Link information for " + newlink['name'] + " is empty.", 'WARNING')
     return newlink, materials, sensors
 
@@ -1679,10 +1650,7 @@ def parseSDFSensors(sensors):
     sensorsdict = {}
 
     for sensor in sensors:
-        newsensor = {}
-        newsensor['name'] = sensor.attrib['name']
-        newsensor['type'] = sensor.attrib['type']
-
+        newsensor = {'name': sensor.attrib['name'], 'type': sensor.attrib['type']}
         # other params
         # always_on
         # update_rate
@@ -1694,10 +1662,11 @@ def parseSDFSensors(sensors):
 
         # parse the content of the sensor type to properties for the sensor
         genparams = [elem.tag for elem in list(sensor.find(newsensor['type']))]
-        props = {}
-        props.update(
+        props = dict(
             {
-                'sdf/' + a: gUtils.parse_text(sensor.find(newsensor['type']).find(a).text)
+                f'sdf/{a}': gUtils.parse_text(
+                    sensor.find(newsensor['type']).find(a).text
+                )
                 for a in genparams
             }
         )
@@ -1729,14 +1698,12 @@ def parseSDFAxis(axis):
     Returns:
 
     """
-    axisdict = {}
     sdfannos = {}
 
     if 'initial_position' in list(axis):
         sdfannos['initial_position'] = gUtils.parse_text(axis.find('initial_position').text)
 
-    axisdict['xyz'] = gUtils.parse_text(axis.find('xyz').text)
-
+    axisdict = {'xyz': gUtils.parse_text(axis.find('xyz').text)}
     if axis.find('use_parent_model_frame') is not None:
         axisdict['use_parent_model_frame'] = bool(axis.find('use_parent_model_frame').text)
     else:
@@ -1778,8 +1745,11 @@ def parseSDFJoint(joint):
     Returns:
 
     """
-    jointdict = {'name': joint.attrib['name'], 'type': joint.attrib['type']}
-    jointdict['parent'] = joint.find('parent').text
+    jointdict = {
+        'name': joint.attrib['name'],
+        'type': joint.attrib['type'],
+        'parent': joint.find('parent').text,
+    }
     jointdict['child'] = joint.find('child').text
 
     # include all generic parameters not defined in this function
@@ -1789,9 +1759,7 @@ def parseSDFJoint(joint):
         if elem.tag
         not in ['parent', 'child', 'axis', 'axis2', 'physics', 'frame', 'pose', 'sensor']
     ]
-    sdfannos = {}
-    sdfannos.update({a: gUtils.parse_text(joint.find(a).text) for a in genparams})
-
+    sdfannos = {} | {a: gUtils.parse_text(joint.find(a).text) for a in genparams}
     axis = joint.find('axis')
     if axis is not None:
         sdfaxis = parseSDFAxis(axis)

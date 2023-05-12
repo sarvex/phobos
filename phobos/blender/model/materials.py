@@ -55,7 +55,7 @@ def createMaterial(material, logging=False, adjust=False, errors=[]):
     Returns:
         bpy.types.Material
     """
-    log("  Creating material {}.".format(material), 'DEBUG')
+    log(f"  Creating material {material}.", 'DEBUG')
 
     mat = bpy.data.materials.new(material['name'])
     mat.diffuse_color = tuple(material['diffuse'])
@@ -80,7 +80,7 @@ def createMaterial(material, logging=False, adjust=False, errors=[]):
     for prop in material:
         if prop.startswith('$'):
             for tag in material[prop]:
-                mat[prop[1:] + '/' + tag] = material[prop][tag]
+                mat[f'{prop[1:]}/{tag}'] = material[prop][tag]
 
     return mat
 
@@ -112,7 +112,7 @@ def assignMaterial(obj, materialname):
         if materialname in defs.definitions['materials']:
             createPhobosMaterials()
         else:
-            log("Material '" + materialname + "' is not defined.", "ERROR")
+            log(f"Material '{materialname}' is not defined.", "ERROR")
             return None
 
     # add material slot never twice

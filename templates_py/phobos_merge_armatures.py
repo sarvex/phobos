@@ -28,11 +28,8 @@ for link in links:
     bpy.ops.object.mode_set(mode='OBJECT')
 
 
-# save list of all parent joints for all visuals
-vparents = {}
 lparents = {}
-for v in visuals:
-    vparents[v.name] = v.parent.name
+vparents = {v.name: v.parent.name for v in visuals}
 for l in links:
     try:
         lparents[l.name] = l.parent.name

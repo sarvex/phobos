@@ -49,7 +49,8 @@ def deriveController(obj):
 
     props['target'] = nUtils.getObjectName(obj.parent)
     log(
-        "  Derived controller '{}' for target '{}'.".format(props['name'], props['target']), 'DEBUG'
+        f"  Derived controller '{props['name']}' for target '{props['target']}'.",
+        'DEBUG',
     )
 
     return props
@@ -86,11 +87,9 @@ def createController(controller, reference, origin=mathutils.Matrix(), annotatio
             pmaterial=controller['material'],
             phobostype='controller',
         )
-        # use resource name provided as: "resource:whatever_name"
-        resource_obj = ioUtils.getResource(
+        if resource_obj := ioUtils.getResource(
             ['controller'] + controller['shape'].split('://')[1].split('_')
-        )
-        if resource_obj:
+        ):
             log("Assigned resource mesh and materials to new controller object.", 'DEBUG')
             newcontroller.data = resource_obj.data
             newcontroller.scale = (controller['size'],) * 3
@@ -123,7 +122,9 @@ def createController(controller, reference, origin=mathutils.Matrix(), annotatio
             keys = []
         for key in keys:
             eUtils.addAnnotationObject(
-                newcontroller, controller['annotations'][key], namespace='controller/' + key
+                newcontroller,
+                controller['annotations'][key],
+                namespace=f'controller/{key}',
             )
 
     # assign the parent if available

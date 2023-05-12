@@ -139,7 +139,7 @@ def createGeometry(viscol, geomsrc, linkobj=None):
 
     """
     if 'geometry' not in viscol or viscol['geometry'] is {}:
-        log("Could not create {}. Geometry information not defined!".format(geomsrc), 'ERROR')
+        log(f"Could not create {geomsrc}. Geometry information not defined!", 'ERROR')
         return None
 
     bpy.ops.object.select_all(action='DESELECT')
@@ -162,22 +162,21 @@ def createGeometry(viscol, geomsrc, linkobj=None):
             newgeom = bpy.context.active_object
             bUtils.sortObjectToCollection(newgeom, cname=geomsrc)
             nUtils.safelyName(newgeom, viscol['name'], phobostype=geomsrc)
+        elif meshname in bpy.data.meshes:
+            log(f'Assigning copy of existing mesh {meshname} to ' + viscol['name'], 'INFO')
+            bpy.ops.object.add(type='MESH')
+            newgeom = bpy.context.object
+            bUtils.sortObjectToCollection(newgeom, cname=geomsrc)
+            newgeom.data = bpy.data.meshes[meshname]
         else:
-            if meshname in bpy.data.meshes:
-                log('Assigning copy of existing mesh ' + meshname + ' to ' + viscol['name'], 'INFO')
-                bpy.ops.object.add(type='MESH')
-                newgeom = bpy.context.object
-                bUtils.sortObjectToCollection(newgeom, cname=geomsrc)
-                newgeom.data = bpy.data.meshes[meshname]
-            else:
-                log("Importing mesh for {0} element: '{1}".format(geomsrc, viscol['name']), 'INFO')
-                filetype = geom['filename'].split('.')[-1].lower()
-                newgeom = meshes.importMesh(geom['filename'], filetype)
-                bUtils.sortObjectToCollection(newgeom, cname=geomsrc)
-                # bpy.data.meshes[newgeom].name = meshname
-                if not newgeom:
-                    log('Failed to import mesh file ' + geom['filename'], 'ERROR')
-                    return
+            log("Importing mesh for {0} element: '{1}".format(geomsrc, viscol['name']), 'INFO')
+            filetype = geom['filename'].split('.')[-1].lower()
+            newgeom = meshes.importMesh(geom['filename'], filetype)
+            bUtils.sortObjectToCollection(newgeom, cname=geomsrc)
+            # bpy.data.meshes[newgeom].name = meshname
+            if not newgeom:
+                log('Failed to import mesh file ' + geom['filename'], 'ERROR')
+                return
     else:
         if geom['type'] == 'box':
             dimensions = geom['size']
@@ -213,13 +212,13 @@ def createGeometry(viscol, geomsrc, linkobj=None):
         if 'material' in viscol:
             assignMaterial(newgeom, viscol['material'])
         else:
-            log('No material for visual {}.'.format(viscol['name']), 'WARNING')
+            log(f"No material for visual {viscol['name']}.", 'WARNING')
 
     # write generic custom properties
     for prop in viscol:
         if prop.startswith('$'):
             for tag in viscol[prop]:
-                newgeom[prop[1:] + '/' + tag] = viscol[prop][tag]
+                newgeom[f'{prop[1:]}/{tag}'] = viscol[prop][tag]
 
     nUtils.safelyName(newgeom, viscol['name'])
     #newgeom[geomsrc + '/name'] = viscol['name']

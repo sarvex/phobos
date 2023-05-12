@@ -55,8 +55,12 @@ try:
             result = [[1., 2., 3.], [2., 4., 5.], [3., 5., 6.]]
 
             self.assertListEqual(
-                list(list(elem) for elem in phobos.model.inertia.inertiaListToMatrix(inertialist)),
-                result)
+                [
+                    list(elem)
+                    for elem in phobos.model.inertia.inertiaListToMatrix(inertialist)
+                ],
+                result,
+            )
 
         def test_inertiaMatriToList(self):
             matrix = [[1, 2, 3], [2, 4, 5], [3, 5, 6]]

@@ -105,8 +105,8 @@ def log(message, level="INFO", prefix="", guionly=False, logfile=True, end='\n')
 
     date = datetime.now().strftime("%Y%m%d_%H:%M:%S")
     # end of line will add the date and level information before the message
-    if end == '\n' or end == '\n\n':
-        msg = date + " - " + level + " " + message + " (" + originname + ")"
+    if end in ['\n', '\n\n']:
+        msg = f"{date} - {level} {message} ({originname})"
         terminalmsg = '{0}[{1}] {2} {3}{4} ({5}){6}'.format(
             prefix, date, decorate(level), message, Col.DIM.value, originname, Col.ENDC.value
         )
@@ -127,16 +127,11 @@ def log(message, level="INFO", prefix="", guionly=False, logfile=True, end='\n')
     # log to terminal or Blender
     if prefs.logtoterminal and not guionly:
         print(terminalmsg, end=end)
-    # log in GUI depending on loglevel
-    else:
-        origin = find_calling_operator(inspect.currentframe())
-
-        # show message in Blender status bar.
-        if origin:
-            # format report message to remove loging level and originname
-            msg = msg.split(level)[1][1:]
-            msg = msg.split(originname)[0][:-2]
-            origin.report({level}, msg)
+    elif origin := find_calling_operator(inspect.currentframe()):
+        # format report message to remove loging level and originname
+        msg = msg.split(level)[1][1:]
+        msg = msg.split(originname)[0][:-2]
+        origin.report({level}, msg)
     # push message to the Phobos message history
     display.push_message(message, level.lower())
 

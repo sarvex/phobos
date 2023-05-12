@@ -49,7 +49,7 @@ class ToggleNamespaces(Operator):
 
         """
         if self.complete:
-            roots = set([sUtils.getRoot(obj) for obj in context.selected_objects]) - {None}
+            roots = {sUtils.getRoot(obj) for obj in context.selected_objects} - {None}
             objects = set()
             for root in roots:
                 objects = objects | set(sUtils.getChildren(root))
@@ -61,7 +61,10 @@ class ToggleNamespaces(Operator):
                 entityname = sUtils.getRoot(obj)['entity/name']
             except (KeyError, TypeError):
                 entityname = ''
-                log(nUtils.getObjectName(obj) + " is not part of a well-defined entity.", "WARNING")
+                log(
+                    f"{nUtils.getObjectName(obj)} is not part of a well-defined entity.",
+                    "WARNING",
+                )
             namespace = self.namespace if self.namespace else entityname
             nUtils.toggleNamespace(obj, namespace)
         return {'FINISHED'}
@@ -113,8 +116,7 @@ class NameModelOperator(Operator):
         Returns:
 
         """
-        root = sUtils.getRoot(context.active_object)
-        if root:
+        if root := sUtils.getRoot(context.active_object):
             root["model/name"] = self.modelname
             # write model information to new root
             root.pose.bones[0].custom_shape = ioUtils.getResource(('link', 'root'))
@@ -177,8 +179,7 @@ class SetModelVersionOperator(Operator):
         """
         root = sUtils.getRoot(context.active_object)
         if self.usegitbranch:
-            gitbranch = ioUtils.getgitbranch()
-            if gitbranch:
+            if gitbranch := ioUtils.getgitbranch():
                 root["model/version"] = self.version.replace('*', gitbranch)
         else:
             root["model/version"] = self.version
@@ -261,7 +262,7 @@ class FixObjectNames(Operator):
 
         for error in errors:
             if error.message[:9] == 'Redundant':
-                log("Deleting redundant name '" + error.information + "'.", 'INFO')
+                log(f"Deleting redundant name '{error.information}'.", 'INFO')
                 del obj[error.information]
 
         return {'FINISHED'}
@@ -302,7 +303,7 @@ class ChangeObjectName(Operator):
         obj = context.active_object
 
         # rename only if necessary
-        if self.newname != '' and self.newname != nUtils.getObjectName(obj):
+        if self.newname not in ['', nUtils.getObjectName(obj)]:
             log(
                 "Renaming "
                 + obj.phobostype
@@ -315,37 +316,28 @@ class ChangeObjectName(Operator):
             )
             nUtils.safelyName(obj, self.newname)
         elif self.newname == '':
-            log("Removing custom name from " + obj.phobostype + " '" + obj.name + "'.", 'INFO')
-            if obj.phobostype + '/name' in obj:
-                del obj[obj.phobostype + '/name']
+            log(f"Removing custom name from {obj.phobostype} '{obj.name}'.", 'INFO')
+            if f'{obj.phobostype}/name' in obj:
+                del obj[f'{obj.phobostype}/name']
 
-        # only links have joint names
         if obj.phobostype == 'link':
-            if self.jointname != '':
-                # only change/add joint/name if it was changed
-                if 'joint/name' not in obj or (
-                    'joint/name' in obj and self.jointname != obj['joint/name']
-                ):
-                    log(
-                        "Renaming joint of "
-                        + obj.phobostype
-                        + " '"
-                        + nUtils.getObjectName(obj)
-                        + "' to '"
-                        + self.jointname
-                        + "'.",
-                        'INFO',
-                    )
-                    obj['joint/name'] = self.jointname
-            # remove joint/name when empty
-            elif self.jointname == '':
+            if self.jointname == '':
                 if 'joint/name' in obj:
-                    log(
-                        "Removing joint name from " + obj.phobostype + " '" + obj.name + "'.",
-                        'INFO',
-                    )
+                    log(f"Removing joint name from {obj.phobostype} '{obj.name}'.", 'INFO')
                     del obj['joint/name']
 
+            elif 'joint/name' not in obj or self.jointname != obj['joint/name']:
+                log(
+                    "Renaming joint of "
+                    + obj.phobostype
+                    + " '"
+                    + nUtils.getObjectName(obj)
+                    + "' to '"
+                    + self.jointname
+                    + "'.",
+                    'INFO',
+                )
+                obj['joint/name'] = self.jointname
         return {'FINISHED'}
 
     @classmethod
@@ -396,7 +388,7 @@ class ChangeObjectName(Operator):
         else:
             layout.prop(self, 'newname')
             self.jointname = ''
-            layout.label(text="Phobostype: " + obj.phobostype)
+            layout.label(text=f"Phobostype: {obj.phobostype}")
 
 classes = (
     ToggleNamespaces,

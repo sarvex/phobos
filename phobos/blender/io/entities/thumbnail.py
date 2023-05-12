@@ -24,11 +24,13 @@ def exportPreview(model, path):
     Returns:
 
     """
-    log("Phobos Thumbnail export: Creating thumbnail in " + path, "INFO")
+    log(f"Phobos Thumbnail export: Creating thumbnail in {path}", "INFO")
     visuals = []
     for linkname in model['links']:
-        for visualname in model['links'][linkname]['visual']:
-            visuals.append(bpy.data.objects[visualname])
+        visuals.extend(
+            bpy.data.objects[visualname]
+            for visualname in model['links'][linkname]['visual']
+        )
     createPreview(visuals, path, model['name'])
 
 

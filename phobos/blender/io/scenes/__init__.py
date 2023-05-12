@@ -13,10 +13,11 @@
 Parses the scene entities at import and provides them as :data:`scene_types`.
 """
 
+
 import os
 import importlib.util
 
-scene_types = dict()
+scene_types = {}
 structure_export_folders = []
 
 # this creates a dict entry for every python file in this subfolder
@@ -34,9 +35,9 @@ for filename in os.listdir(os.path.dirname(__file__)):
 
         # try reading the entity dictionary and add it to the existing entities
         if hasattr(py_mod, 'scene_type_dict'):
-            scene_types.update(py_mod.scene_type_dict.copy())
+            scene_types |= py_mod.scene_type_dict.copy()
             print('Registered scene plugin:', list(py_mod.scene_type_dict.keys()))
         else:
             print(
-                'ERROR in scenes/__init__: "' + filename + '" has no valid scene plugin interface.'
+                f'ERROR in scenes/__init__: "{filename}" has no valid scene plugin interface.'
             )

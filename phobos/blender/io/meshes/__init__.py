@@ -13,10 +13,11 @@
 Parses the mesh entities when imported and provides them as :data:`mesh_types`.
 """
 
+
 import os
 import importlib.util
 
-mesh_types = dict()
+mesh_types = {}
 
 # this creates a dict entry for every python file in this subfolder
 for filename in os.listdir(os.path.dirname(__file__)):
@@ -32,9 +33,9 @@ for filename in os.listdir(os.path.dirname(__file__)):
         spec.loader.exec_module(py_mod)
 
         if hasattr(py_mod, 'mesh_type_dict'):
-            mesh_types.update(py_mod.mesh_type_dict.copy())
+            mesh_types |= py_mod.mesh_type_dict.copy()
             print('Registered mesh plugin:', list(py_mod.mesh_type_dict.keys()))
         else:
             print(
-                'ERROR in meshes/__init__: "' + filename + '" has no valid mesh plugin interface.'
+                f'ERROR in meshes/__init__: "{filename}" has no valid mesh plugin interface.'
             )

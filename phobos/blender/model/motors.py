@@ -41,7 +41,7 @@ def createMotor(motor, parentobj, origin=mathutils.Matrix(), addcontrollers=Fals
     primitive_name = ''
 
     # create name if not given by motor dict
-    if not 'name' in motor or len(motor['name']) == 0:
+    if 'name' not in motor or len(motor['name']) == 0:
         motor['name'] = parentobj.name
         primitive_name = "motor_" + motor['name']
     else:
@@ -50,7 +50,7 @@ def createMotor(motor, parentobj, origin=mathutils.Matrix(), addcontrollers=Fals
     primitive_name = ''
 
     # create name if not given by motor dict
-    if not 'name' in motor or len(motor['name']) == 0:
+    if 'name' not in motor or len(motor['name']) == 0:
         motor['name'] = parentobj.name
         primitive_name = "motor_" + motor['name']
     else:
@@ -68,9 +68,9 @@ def createMotor(motor, parentobj, origin=mathutils.Matrix(), addcontrollers=Fals
             pmaterial=motor['material'],
             phobostype='motor',
         )
-        # use resource name provided as: "resource:whatever_name"
-        resource_obj = ioUtils.getResource(['motor'] + motor['shape'].split('://')[1].split('_'))
-        if resource_obj:
+        if resource_obj := ioUtils.getResource(
+            ['motor'] + motor['shape'].split('://')[1].split('_')
+        ):
             log("Assigned resource mesh and materials to new motor object.", 'DEBUG')
             newmotor.data = resource_obj.data
             newmotor.scale = (motor['size'],) * 3
@@ -108,7 +108,7 @@ def createMotor(motor, parentobj, origin=mathutils.Matrix(), addcontrollers=Fals
 
         motorcontroller = defs.definitions['motors'][defname]['controller']
         controllerdefs = ioUtils.getDictFromYamlDefs(
-            'controller', motorcontroller, newmotor.name + '_controller'
+            'controller', motorcontroller, f'{newmotor.name}_controller'
         )
         newcontroller = controllermodel.createController(
             controllerdefs, newmotor, origin=newmotor.matrix_world, annotations='all'
@@ -146,9 +146,7 @@ def deriveMotor(obj, jointdict=None):
     # make sure the parent is a joint
     if not obj.parent or obj.parent.phobostype != 'link' or 'joint/type' not in obj.parent:
         log(
-            "Can not derive motor from {}. Insufficient requirements from parent object!".format(
-                obj.name
-            ),
+            f"Can not derive motor from {obj.name}. Insufficient requirements from parent object!",
             'ERROR',
         )
         return None
@@ -168,9 +166,11 @@ def deriveMotor(obj, jointdict=None):
             props['mimic_offset'] = (obj.parent)['joint/mimic_offset']
             break
 
-    # try to derive the motor controller
-    controllerobjs = [control for control in obj.children if control.phobostype == 'controller']
-    if controllerobjs:
+    if controllerobjs := [
+        control
+        for control in obj.children
+        if control.phobostype == 'controller'
+    ]:
         controller = controllermodel.deriveController(controllerobjs[0])
     else:
         controller = None

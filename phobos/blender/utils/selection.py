@@ -231,13 +231,11 @@ def getRoots(scene=None):
 
     roots = [obj for obj in scene.objects if isRoot(obj, scene=scene)]
     if roots is None:
-        log("No root objects found in scene {}.".format(scene), 'WARNING')
+        log(f"No root objects found in scene {scene}.", 'WARNING')
     else:
         rootnames = ', '.join((root.name for root in roots))
         log(
-            "Found {} root object{} in scene {}: {}".format(
-                len(roots), 's' if len(roots) > 1 else '', scene, rootnames
-            ),
+            f"Found {len(roots)} root object{'s' if len(roots) > 1 else ''} in scene {scene}: {rootnames}",
             'DEBUG',
         )
     return roots
@@ -261,7 +259,7 @@ def isRoot(obj, scene=None):
 
 def getRootsOfSelection():
     """TODO Missing documentation"""
-    return list(set([getRoot(obj) for obj in bpy.context.selected_objects]))
+    return list({getRoot(obj) for obj in bpy.context.selected_objects})
 
 
 def isEntity(obj):
@@ -374,11 +372,11 @@ def getObjectByNameAndType(name, phobostype):
 
     """
     # FIXME: make this API-compatible with geObjectByName
-    name_tag = phobostype + "/name"
+    name_tag = f"{phobostype}/name"
     for obj in bpy.data.objects:
         if name_tag in obj and name == obj[name_tag]:
             return obj
-    log("No object of type " + phobostype + " with name " + name + " found.", "WARNING")
+    log(f"No object of type {phobostype} with name {name} found.", "WARNING")
     return None
 
 
@@ -411,12 +409,14 @@ def getObjectByProperty(property, value):
     Returns:
 
     """
-    candidate = None
-    for obj in bpy.data.objects:
-        if property in obj and obj[property] == value:
-            candidate = obj
-            break
-    return candidate
+    return next(
+        (
+            obj
+            for obj in bpy.data.objects
+            if property in obj and obj[property] == value
+        ),
+        None,
+    )
 
 
 def getSubmechanismRoots(selection_only=False):

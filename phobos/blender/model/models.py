@@ -57,8 +57,7 @@ def collectMaterials(objectlist):
     materials = {}
     for obj in objectlist:
         if obj.phobostype == 'visual':
-            mat = obj.active_material
-            if mat:
+            if mat := obj.active_material:
                 if mat.name not in materials:
                     materials[mat.name] = deriveMaterial(mat)
                     materials[mat.name]['users'] = 1
@@ -194,7 +193,7 @@ def deriveLink(linkobj, objectlist=[], logging=False, errors=None):
         objectlist = list(bpy.context.scene.objects)
 
     if logging:
-        log("Deriving link from object " + linkobj.name + ".", 'DEBUG')
+        log(f"Deriving link from object {linkobj.name}.", 'DEBUG')
     props = initObjectProperties(
         linkobj, phobostype='link', ignoretypes=linkobjignoretypes - {'link'}
     )
@@ -217,7 +216,7 @@ def deriveLink(linkobj, objectlist=[], logging=False, errors=None):
         if effectiveparent == linkobj:
             if logging:
                 log(
-                    "  Adding " + obj.phobostype + " '" + nUtils.getObjectName(obj) + "' to link.",
+                    f"  Adding {obj.phobostype} '{nUtils.getObjectName(obj)}' to link.",
                     'DEBUG',
                 )
             if obj.phobostype == 'approxsphere':
@@ -235,10 +234,7 @@ def deriveLink(linkobj, objectlist=[], logging=False, errors=None):
         # get inertia data
         mass, com, inertia = inertiamodel.fuse_inertia_data(inertials)
 
-    if not any([mass, com, inertia]):
-        if logging:
-            log("No inertia information for link object " + linkobj.name + ".", 'DEBUG')
-    else:
+    if any([mass, com, inertia]):
         # add inertia to link
         inertia = inertiamodel.inertiaMatrixToList(inertia)
         props['inertial'] = {
@@ -247,6 +243,8 @@ def deriveLink(linkobj, objectlist=[], logging=False, errors=None):
             'pose': {'translation': list(com), 'rotation_euler': [0, 0, 0]},
         }
 
+    elif logging:
+        log(f"No inertia information for link object {linkobj.name}.", 'DEBUG')
     bitmask = 0
     for collname in props['collision']:
         try:
@@ -285,18 +283,14 @@ def get_link_information(linkobj):
     collisionobjs = sUtils.getImmediateChildren(
         linkobj, phobostypes=('collision'), include_hidden=True
     )
-    collisiondict = {}
-    for colobj in collisionobjs:
-        collisiondict[colobj.name] = colobj
+    collisiondict = {colobj.name: colobj for colobj in collisionobjs}
     props['collision'] = collisiondict
 
     # collect visual objs for link
     visualobjects = sUtils.getImmediateChildren(
         linkobj, phobostypes=('visual'), include_hidden=True
     )
-    visualdict = {}
-    for visualobj in visualobjects:
-        visualdict[visualobj.name] = visualobj
+    visualdict = {visualobj.name: visualobj for visualobj in visualobjects}
     props["visual"] = visualdict
 
     # collect inertial objects
@@ -309,10 +303,9 @@ def get_link_information(linkobj):
     sensorobjects = sUtils.getImmediateChildren(
         linkobj, phobostypes=('sensor'), include_hidden=True
     )
-    sensordict = {}
-    for sensorobj in sensorobjects:
-        sensordict[sensorobj.name] = sensorobj
-    if sensordict:
+    if sensordict := {
+        sensorobj.name: sensorobj for sensorobj in sensorobjects
+    }:
         props["sensor"] = sensordict
 
     props['approxcollision'] = []
@@ -345,11 +338,9 @@ def deriveJoint(obj, logging=False, adjust=False, errors=None):
     if axis:
         props['axis'] = list(axis)
     limits = {}
-    if minmax is not None:
-        # prismatic or revolute joint, TODO: planar etc.
-        if len(minmax) == 2:
-            limits['lower'] = minmax[0]
-            limits['upper'] = minmax[1]
+    if minmax is not None and len(minmax) == 2:
+        limits['lower'] = minmax[0]
+        limits['upper'] = minmax[1]
     if 'maxSpeed' in props:
         limits['velocity'] = props['maxSpeed']
         del props['maxSpeed']
@@ -435,9 +426,7 @@ def deriveVisual(obj, logging=True, **kwargs):
     visual['geometry'] = deriveGeometry(obj, logging=logging)
     visual['pose'] = deriveObjectPose(obj, logging=logging)
 
-    # check for material of the visual
-    material = deriveMaterial(obj.active_material, logging=logging)
-    if material:
+    if material := deriveMaterial(obj.active_material, logging=logging):
         visual['material'] = material['name']
 
     #todo2.9: if obj.lod_levels:
@@ -512,7 +501,7 @@ def deriveApproxsphere(obj):
         pose = deriveObjectPose(obj)
         sphere['center'] = pose['translation']
     except KeyError:
-        log("Missing data in collision approximation object " + obj.name, "ERROR")
+        log(f"Missing data in collision approximation object {obj.name}", "ERROR")
         return None
     return sphere
 
@@ -632,7 +621,6 @@ def initObjectProperties(
                 value = value.to_dict()
             props[key] = value
 
-    # search for type-specific properties if phobostype is defined
     else:
         for key, value in obj.items():
             # transform Blender id_arrays into lists
@@ -642,23 +630,21 @@ def initObjectProperties(
                 value = value.to_dict()
 
             # remove phobostype namespaces for the object
-            if key.startswith(phobostype + '/'):
+            if key.startswith(f'{phobostype}/'):
                 if key.count('/') == 1:
-                    props[key.replace(phobostype + '/', '')] = value
-                # TODO make this work for all levels of hierarchy
+                    props[key.replace(f'{phobostype}/', '')] = value
                 elif key.count('/') == 2:
                     category, specifier = key.split('/')[1:]
-                    if '$' + category not in props:
-                        props['$' + category] = {}
-                    props['$' + category][specifier] = value
+                    if f'${category}' not in props:
+                        props[f'${category}'] = {}
+                    props[f'${category}'][specifier] = value
 
-            # ignore two-level specifiers if phobostype is not present
             elif key.count('/') == 1:
                 category, specifier = key.split('/')
                 if category not in ignoretypes:
-                    if '$' + category not in props:
-                        props['$' + category] = {}
-                    props['$' + category][specifier] = value
+                    if f'${category}' not in props:
+                        props[f'${category}'] = {}
+                    props[f'${category}'][specifier] = value
 
     # collect phobostype specific annotations from child objects
     if includeannotations:
@@ -670,10 +656,12 @@ def initObjectProperties(
                 ),
                 'DEBUG',
             )
-            props.update(
-                initObjectProperties(
-                    annot, phobostype, ignoretypes, includeannotations, ignorename=True
-                )
+            props |= initObjectProperties(
+                annot,
+                phobostype,
+                ignoretypes,
+                includeannotations,
+                ignorename=True,
             )
 
     # recursively enrich the property dictionary
@@ -719,7 +707,7 @@ def deriveDictEntry(obj, names=False, objectlist=[], logging=True, adjust=True):
         elif obj.phobostype == 'annotation':
             props = deriveAnnotation(obj)
     except KeyError:
-        log("A KeyError occurred due to missing data in object" + obj.name, "DEBUG")
+        log(f"A KeyError occurred due to missing data in object{obj.name}", "DEBUG")
         return None, None
     return props
 
@@ -735,8 +723,7 @@ def deriveAnnotation(obj):
     """
     props = {}
 
-    props = initObjectProperties(obj, includeannotations=False)
-    return props
+    return initObjectProperties(obj, includeannotations=False)
 
 
 def deriveGroupEntry(group):
@@ -785,7 +772,7 @@ def deriveChainEntry(obj):
         while not chainclosed:
             # FIXME: use effectiveParent
             if parent.parent is None:
-                log("Unclosed chain, aborting parsing chain " + chainName, "ERROR")
+                log(f"Unclosed chain, aborting parsing chain {chainName}", "ERROR")
                 chain = None
                 break
             chain['elements'].append(parent.name)
@@ -813,16 +800,20 @@ def deriveTextData(modelname):
 
     """
     datadict = {}
-    datatextfiles = [text for text in bpy.data.texts if text.name.startswith(modelname + '::')]
+    datatextfiles = [
+        text
+        for text in bpy.data.texts
+        if text.name.startswith(f'{modelname}::')
+    ]
     for text in datatextfiles:
         try:
             dataname = text.name.split('::')[-1]
         except IndexError:
-            log("Possibly invalidly named model data text file: " + modelname, "WARNING")
+            log(f"Possibly invalidly named model data text file: {modelname}", "WARNING")
         try:
             data = json.loads(bUtils.readTextFile(text.name))
         except:
-            log("Invalid formatting of data file: " + dataname, "ERROR")
+            log(f"Invalid formatting of data file: {dataname}", "ERROR")
         if data:
             datadict[dataname] = data
     return datadict
@@ -976,7 +967,7 @@ def namespaced(name, namespace):
     Returns:
 
     """
-    return namespace + '_' + name
+    return f'{namespace}_{name}'
 
 
 def deriveModelDictionary(root, name='', objectlist=[]):
@@ -995,7 +986,7 @@ def deriveModelDictionary(root, name='', objectlist=[]):
 
     """
     if root.phobostype not in ['link', 'submodel']:
-        log(root.name + " is no valid 'link' or 'submodel' object.", "ERROR")
+        log(f"{root.name} is no valid 'link' or 'submodel' object.", "ERROR")
         return None
 
     # define model name
@@ -1032,7 +1023,7 @@ def deriveModelDictionary(root, name='', objectlist=[]):
     }
 
     log(
-        "Creating dictionary for model '" + modelname + "' with root '" + root.name + "'.",
+        f"Creating dictionary for model '{modelname}' with root '{root.name}'.",
         'INFO',
         prefix="\n",
     )
@@ -1045,7 +1036,7 @@ def deriveModelDictionary(root, name='', objectlist=[]):
     linklist = [link for link in objectlist if link.phobostype == 'link']
 
     # digest all the links to derive link and joint information
-    log("Parsing links, joints and motors... " + (str(len(linklist))) + " total.", "INFO")
+    log(f"Parsing links, joints and motors... {len(linklist)} total.", "INFO")
     for link in linklist:
         # parse link information (including inertia)
         model['links'][nUtils.getObjectName(link, 'link')] = deriveLink(
@@ -1065,7 +1056,7 @@ def deriveModelDictionary(root, name='', objectlist=[]):
                 # at least we need a type property
                 if 'type' in motordict:
                     # if no name is given derive it from the joint
-                    if not 'name' in motordict:
+                    if 'name' not in motordict:
                         motordict["name"] = jointdict['name']
                     model['motors'][motordict['name']] = motordict
                     # link the joint by name:
@@ -1089,7 +1080,7 @@ def deriveModelDictionary(root, name='', objectlist=[]):
     log("Parsing sensors and controllers... {} total.".format(len(sencons)), 'INFO')
     for obj in sencons:
         props = deriveDictEntry(obj, names=True, objectlist=objectlist)
-        model[obj.phobostype + 's'][nUtils.getObjectName(obj)] = props
+        model[f'{obj.phobostype}s'][nUtils.getObjectName(obj)] = props
 
     # parse materials
     log("Parsing materials...", 'INFO')
@@ -1097,31 +1088,30 @@ def deriveModelDictionary(root, name='', objectlist=[]):
     for obj in objectlist:
         if obj.phobostype == 'visual':
             mat = obj.active_material
-            if mat:
-                if mat.name not in model['materials']:
-                    model['materials'][mat.name] = deriveMaterial(mat)
-                    linkname = nUtils.getObjectName(
-                        sUtils.getEffectiveParent(obj, ignore_selection=bool(objectlist))
-                    )
-                    model['links'][linkname]['visual'][nUtils.getObjectName(obj)][
-                        'material'
-                    ] = mat.name
+            if mat and mat.name not in model['materials']:
+                model['materials'][mat.name] = deriveMaterial(mat)
+                linkname = nUtils.getObjectName(
+                    sUtils.getEffectiveParent(obj, ignore_selection=bool(objectlist))
+                )
+                model['links'][linkname]['visual'][nUtils.getObjectName(obj)][
+                    'material'
+                ] = mat.name
 
     # identify unique meshes
     log("Parsing meshes...", "INFO")
     for obj in objectlist:
         try:
             if (
-                (obj.phobostype == 'visual' or obj.phobostype == 'collision')
-                and (obj['geometry/type'] == 'mesh')
-                and (obj.data.name not in model['meshes'])
+                obj.phobostype in ['visual', 'collision']
+                and obj['geometry/type'] == 'mesh'
+                and obj.data.name not in model['meshes']
             ):
                 model['meshes'][obj.data.name] = obj
                 #todo2.9: for lod in obj.lod_levels:
                 #     if lod.object.data.name not in model['meshes']:
                 #         model['meshes'][lod.object.data.name] = lod.object
         except KeyError:
-            log("Undefined geometry type in object " + obj.name, "ERROR")
+            log(f"Undefined geometry type in object {obj.name}", "ERROR")
 
     # gather information on groups of objects
     log("Parsing groups...", 'INFO')
@@ -1219,13 +1209,13 @@ def buildModelFromDictionary(model):
     """
     log("Creating Blender model...", 'INFO', prefix='\n' + '-' * 25 + '\n')
 
-    log("  Initializing materials... ({} total)".format(len(model['materials'])), 'INFO')
+    log(f"  Initializing materials... ({len(model['materials'])} total)", 'INFO')
     for mat in model['materials']:
         matmodel.createMaterial(model['materials'][mat], logging=True, adjust=True)
         # ['name'], tuple(mat['color'][0:3]), (1, 1, 1), mat['color'][-1])
 
     newobjects = []
-    log("  Creating links... ({} total)".format(len(model['links'])), 'INFO')
+    log(f"  Creating links... ({len(model['links'])} total)", 'INFO')
     for lnk in model['links']:
         link = model['links'][lnk]
         model['links'][lnk]['object'] = linkmodel.createLink(link)
@@ -1244,19 +1234,23 @@ def buildModelFromDictionary(model):
             eUtils.parentObjectsTo(child['object'], parent['object'])
 
     # set transformations
-    log("Transforming links...  ({} total)".format(len(model['links'])), 'INFO', prefix='\n')
+    log(
+        f"Transforming links...  ({len(model['links'])} total)",
+        'INFO',
+        prefix='\n',
+    )
     for lnk in model['links']:
         if 'parent' not in model['links'][lnk]:
             root = model['links'][lnk]
             break
     linkmodel.setLinkTransformations(model, root)
 
-    log("Creating joints... ({} total)".format(len(model['joints'])), 'INFO', prefix='\n')
+    log(f"Creating joints... ({len(model['joints'])} total)", 'INFO', prefix='\n')
     for j in model['joints']:
         joint = model['joints'][j]
         jointmodel.createJoint(joint, links=model['links'])
 
-    log("Assigning model name: {}".format(model['name']), 'INFO')
+    log(f"Assigning model name: {model['name']}", 'INFO')
     rootlink = sUtils.getRoot(bpy.data.objects[root['object'].name])
     if 'name' not in model:
         log("Model name not specified in URDF. Make sure to define it thereafter.", 'WARNING')
@@ -1364,9 +1358,11 @@ def gatherAnnotations(model):
             if key.startswith('$'):
                 category = key[1:]
                 # ignore motor properties for link and joint types
-                if category == "motor":
-                    if element['temp_type'] == "link" or element['temp_type'] == "joint":
-                        continue
+                if category == "motor" and element['temp_type'] in [
+                    "link",
+                    "joint",
+                ]:
+                    continue
                 if category not in annotations:
                     annotations[category] = {}
                 if element['temp_type'] not in annotations[category]:
@@ -1401,15 +1397,11 @@ def replace_object_links(dictionary):
     """
     newdict = {}
     if isinstance(dictionary, list):
-        newlist = []
-        for item in dictionary:
-            newlist.append(replace_object_links(item))
-        return newlist
-
+        return [replace_object_links(item) for item in dictionary]
     for key, value in dictionary.items():
         if isinstance(value, list):
-            if all([isinstance(item, dict) for item in value]) and all(
-                [('name' in item and 'object' in item) for item in value]
+            if all(isinstance(item, dict) for item in value) and all(
+                ('name' in item and 'object' in item) for item in value
             ):
                 newdict[key] = sorted([item['name'] for item in value])
 

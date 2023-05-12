@@ -30,15 +30,7 @@ def deriveGenericEntity(entityobj, outpath=None):
         "Exporting " + nUtils.getObjectName(entityobj, 'entity') + " as entity of type 'generic",
         "INFO",
     )
-    entity = models.initObjectProperties(entityobj, 'entity', ['geometry'])
-    return entity
-
-    # write urdf
-    urdf_path = "../urdf/" if structured else ''
-    urdf_filename = model['name'] + ".urdf"
-    exportModelToURDF(
-        model, os.path.join(path, urdf_path, urdf_filename), '../meshes/' if structured else ''
-    )
+    return models.initObjectProperties(entityobj, 'entity', ['geometry'])
 
 
 def exportGenericEntity(entity, outpath):

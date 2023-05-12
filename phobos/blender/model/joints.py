@@ -101,12 +101,10 @@ def createJoint(joint, linkobj=None, links=None):
     if 'limits' in joint:
         for param,newName in {'effort': 'maxEffort', 'velocity': 'maxSpeed'}.items():
             if param in joint['limits']:
-                linkobj['joint/' + newName] = joint['limits'][param]
+                linkobj[f'joint/{newName}'] = joint['limits'][param]
             else:
                 log(
-                    "Joint limits incomplete for joint {}. Missing {}.".format(
-                        joint['name'], param
-                    ),
+                    f"Joint limits incomplete for joint {joint['name']}. Missing {param}.",
                     'ERROR',
                 )
 
@@ -127,8 +125,8 @@ def createJoint(joint, linkobj=None, links=None):
     for prop in joint:
         if prop.startswith('$'):
             for tag in joint[prop]:
-                linkobj['joint/' + prop[1:] + '/' + tag] = joint[prop][tag]
-    log("Assigned joint information to {}.".format(linkobj.name), 'DEBUG')
+                linkobj[f'joint/{prop[1:]}/{tag}'] = joint[prop][tag]
+    log(f"Assigned joint information to {linkobj.name}.", 'DEBUG')
 
 
 def getJointConstraints(joint):
@@ -165,42 +163,36 @@ def getJointConstraints(joint):
             c = getJointConstraint(joint, 'LIMIT_LOCATION')
             if not c:
                 raise Exception(
-                    "JointTypeError: under-defined constraints in joint (" + joint.name + ")."
+                    f"JointTypeError: under-defined constraints in joint ({joint.name})."
                 )
             freeloc = [
                 c.use_min_x and c.use_max_x and c.min_x == c.max_x,
                 c.use_min_y and c.use_max_y and c.min_y == c.max_y,
                 c.use_min_z and c.use_max_z and c.min_z == c.max_z,
             ]
-            if jt == 'prismatic':
-                if sum(freeloc) == 2:
-                    # TODO delete me?
-                    # axis = mathutils.Vector([int(not i) for i in freeloc])
-                    # vector along axis of bone (Y axis of pose bone) in obect space
-                    axis = joint.data.bones[0].vector.normalized()
-                    if not freeloc[0]:
-                        limits = (c.min_x, c.max_x)
-                    elif not freeloc[1]:
-                        limits = (c.min_y, c.max_y)
-                    elif not freeloc[2]:
-                        limits = (c.min_z, c.max_z)
-                else:
-                    raise Exception(
-                        "JointTypeError: under-defined constraints in joint (" + joint.name + ")."
-                    )
+            if jt == 'prismatic' and sum(freeloc) == 2:
+                # TODO delete me?
+                # axis = mathutils.Vector([int(not i) for i in freeloc])
+                # vector along axis of bone (Y axis of pose bone) in obect space
+                axis = joint.data.bones[0].vector.normalized()
+                if not freeloc[0]:
+                    limits = (c.min_x, c.max_x)
+                elif not freeloc[1]:
+                    limits = (c.min_y, c.max_y)
+                elif not freeloc[2]:
+                    limits = (c.min_z, c.max_z)
+            elif jt == 'prismatic' or jt == 'planar' and sum(freeloc) != 1:
+                raise Exception(
+                    f"JointTypeError: under-defined constraints in joint ({joint.name})."
+                )
             elif jt == 'planar':
-                if sum(freeloc) == 1:
-                    axis = mathutils.Vector([int(i) for i in freeloc])
-                    if axis[0]:
-                        limits = (c.min_y, c.max_y, c.min_z, c.max_z)
-                    elif axis[1]:
-                        limits = (c.min_x, c.max_x, c.min_z, c.max_z)
-                    elif axis[2]:
-                        limits = (c.min_x, c.max_x, c.min_y, c.max_y)
-                else:
-                    raise Exception(
-                        "JointTypeError: under-defined constraints in joint (" + joint.name + ")."
-                    )
+                axis = mathutils.Vector([int(i) for i in freeloc])
+                if axis[0]:
+                    limits = (c.min_y, c.max_y, c.min_z, c.max_z)
+                elif axis[1]:
+                    limits = (c.min_x, c.max_x, c.min_z, c.max_z)
+                elif axis[2]:
+                    limits = (c.min_x, c.max_x, c.min_y, c.max_y)
     return axis, limits
 
 
@@ -255,10 +247,10 @@ def setJointConstraints(
 
     """
     if joint.phobostype != 'link':
-        log("Cannot set joint constraints. Not a link: {}".format(joint), 'ERROR')
+        log(f"Cannot set joint constraints. Not a link: {joint}", 'ERROR')
         return
 
-    log("Setting joint constraints at link {}.".format(joint.name), 'DEBUG')
+    log(f"Setting joint constraints at link {joint.name}.", 'DEBUG')
     bpy.ops.object.mode_set(mode='POSE')
 
     # remove existing constraints from bone
@@ -298,7 +290,10 @@ def setJointConstraints(
     elif jointtype == 'planar':
         set_planar(joint)
     else:
-        log("Unknown joint type for joint " + joint.name + ". Behaviour like floating.", 'WARNING')
+        log(
+            f"Unknown joint type for joint {joint.name}. Behaviour like floating.",
+            'WARNING',
+        )
     joint['joint/type'] = jointtype
     bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -310,9 +305,7 @@ def setJointConstraints(
                 joint['joint/maxeffort_coefficients'] = maxeffort_approximation['coefficients']
             else:
                 log(
-                    "Approximation for max effort ill-defined in joint object {}.".format(
-                        joint.name
-                    ),
+                    f"Approximation for max effort ill-defined in joint object {joint.name}.",
                     'ERROR',
                 )
         if maxspeed_approximation:
@@ -321,16 +314,12 @@ def setJointConstraints(
                 joint['joint/maxspeed_coefficients'] = maxspeed_approximation['coefficients']
             else:
                 log(
-                    "Approximation for max speed ill-defined in joint object {}.".format(
-                        joint.name
-                    ),
+                    f"Approximation for max speed ill-defined in joint object {joint.name}.",
                     'ERROR',
                 )
 
-    # set link/joint visualization
-    resource_obj = ioUtils.getResource(('joint', jointtype))
-    if resource_obj:
-        log("Assigned resource to {}.".format(joint.name), 'DEBUG')
+    if resource_obj := ioUtils.getResource(('joint', jointtype)):
+        log(f"Assigned resource to {joint.name}.", 'DEBUG')
         joint.pose.bones[0].custom_shape = resource_obj
 
 
@@ -367,18 +356,15 @@ def getJointType(joint):
     # all but floating joints have translational limits
     if cloc:
         # fixed, revolute or continuous
-        if ncloc == 3:
-            if ncrot == 3:
-                if sum(crot) > 0:
-                    jtype = 'revolute'
-                else:
-                    jtype = 'fixed'
-            elif ncrot == 2:
-                jtype = 'continuous'
+        if ncloc == 1:
+            jtype = 'planar'
         elif ncloc == 2:
             jtype = 'prismatic'
-        elif ncloc == 1:
-            jtype = 'planar'
+        elif ncloc == 3:
+            if ncrot == 2:
+                jtype = 'continuous'
+            elif ncrot == 3:
+                jtype = 'revolute' if sum(crot) > 0 else 'fixed'
     return jtype, crot
 
 
@@ -417,14 +403,16 @@ def deriveJointState(joint):
       : dict
 
     """
-    state = {
-        'matrix': [list(vector) for vector in list(joint.pose.bones[0].matrix_basis)],
+    return {
+        'matrix': [
+            list(vector) for vector in list(joint.pose.bones[0].matrix_basis)
+        ],
         'translation': list(joint.pose.bones[0].matrix_basis.to_translation()),
         'rotation_euler': list(joint.pose.bones[0].matrix_basis.to_euler()),
-        'rotation_quaternion': list(joint.pose.bones[0].matrix_basis.to_quaternion()),
+        'rotation_quaternion': list(
+            joint.pose.bones[0].matrix_basis.to_quaternion()
+        ),
     }
-    # TODO: hard-coding this could prove problematic if we at some point build armatures from multiple bones
-    return state
 
 
 def set_revolute(joint, lower, upper):

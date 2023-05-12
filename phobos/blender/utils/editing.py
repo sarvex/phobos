@@ -41,8 +41,8 @@ def dissolveLink(obj, delete_other=False):
         originallayers[name] = coll.exclude
         coll.exclude = False
 
-    if not obj.phobostype == 'link':
-        log('Selected object {} is not a link!'.format(obj.name), 'ERROR')
+    if obj.phobostype != 'link':
+        log(f'Selected object {obj.name} is not a link!', 'ERROR')
         return
 
     else:
@@ -163,7 +163,10 @@ def restructureKinematicTree(link, root=None):
             links.append(obj)
     links.append(root)
 
-    log("Unparenting objects for restructure: " + str([link.name for link in links]) + ".", 'DEBUG')
+    log(
+        f"Unparenting objects for restructure: {[link.name for link in links]}.",
+        'DEBUG',
+    )
     # unparent all links
     sUtils.selectObjects(links, True)
     bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
@@ -182,7 +185,7 @@ def restructureKinematicTree(link, root=None):
     if 'model/version' in root:
         link['model/version'] = root['model/version']
         del root['model/version']
-    log("Restructured kinematic tree to new root: {}.".format(link.name), 'INFO')
+    log(f"Restructured kinematic tree to new root: {link.name}.", 'INFO')
 
 
 def parentObjectsTo(objects, parent, clear=False):
@@ -253,11 +256,10 @@ def getNearestCommonParent(objs):
             ):  # check which break condition happened, break if not arrived at parent
                 in_all = False
                 break
-    if not in_all:  # this is only true if none of the branches set it to False and broke afterwards
+    if not in_all:
         return None
-    else:
-        inter_objects.remove(parent)
-        return parent, list(inter_objects)
+    inter_objects.remove(parent)
+    return parent, list(inter_objects)
 
 
 def instantiateSubmodel(submodelname, instancename, size=1.0):
@@ -372,9 +374,9 @@ def defineSubmodel(submodelname, submodeltype, version='', objects=None):
 
     # make the physical group
     sUtils.selectObjects(physical_objects, True, 0)
-    submodelgroupname = submodeltype + ':' + submodelname
+    submodelgroupname = f'{submodeltype}:{submodelname}'
     if version != '':
-        submodelgroupname += '/' + version
+        submodelgroupname += f'/{version}'
     if submodelgroupname in bpy.data.groups.keys():
         log('submodelgroupname ' + 'already exists', 'WARNING')
     bpy.ops.group.create(name=submodelgroupname)
@@ -390,7 +392,7 @@ def defineSubmodel(submodelname, submodeltype, version='', objects=None):
 
     # move objects to submodel layer
     for obj in physical_objects:
-        if not 'submodel' in bpy.context.scene.collection.children.keys():
+        if 'submodel' not in bpy.context.scene.collection.children.keys():
             newcollection = bpy.data.collections.new('submodel')
             bpy.context.scene.collection.children.link(newcollection)
         for name, collection in bpy.context.scene.collection.children.items():
@@ -398,15 +400,18 @@ def defineSubmodel(submodelname, submodeltype, version='', objects=None):
                 collection.objects.link(obj)
             elif obj.name in collection.objects:
                 collection.objects.unlink(obj)
-    log('Created submodel group ' + submodelname + ' of type "' + submodeltype + '".', 'DEBUG')
+    log(
+        f'Created submodel group {submodelname} of type "{submodeltype}".',
+        'DEBUG',
+    )
 
     interfacegroup = None
     # make the interface group
     if interfaces:
         sUtils.selectObjects(interfaces, True, 0)
-        interfacegroupname = 'interfaces:' + submodelname
+        interfacegroupname = f'interfaces:{submodelname}'
         if version != '':
-            interfacegroupname += '/' + version
+            interfacegroupname += f'/{version}'
         # TODO what about overwriting groups with same names?
         bpy.ops.group.create(name=interfacegroupname)
         interfacegroup = bpy.data.groups[interfacegroupname]
@@ -419,7 +424,7 @@ def defineSubmodel(submodelname, submodeltype, version='', objects=None):
         # move objects to interface layer
         for obj in interfaces:
             bUtils.sortObjectToCollection(obj, cname='interface')
-        log('Created interface group for submodel ' + submodelname + '.', 'DEBUG')
+        log(f'Created interface group for submodel {submodelname}.', 'DEBUG')
     else:
         log('No interfaces for this submodel.', 'DEBUG')
 
@@ -443,9 +448,9 @@ def removeSubmodel(submodelname, submodeltype, version='', interfaces=True):
 
     """
     # build the group name to look for
-    submodelgroupname = submodeltype + ':' + submodelname
+    submodelgroupname = f'{submodeltype}:{submodelname}'
     if version != '':
-        submodelgroupname += '/' + version
+        submodelgroupname += f'/{version}'
 
     # remove the submodelgroup
     if submodelgroupname in bpy.data.groups:
@@ -454,9 +459,9 @@ def removeSubmodel(submodelname, submodeltype, version='', interfaces=True):
             return True
 
     if interfaces:
-        interfacegroupname = 'interfaces:' + submodelname
+        interfacegroupname = f'interfaces:{submodelname}'
         if version != '':
-            interfacegroupname += '/' + version
+            interfacegroupname += f'/{version}'
 
         if interfacegroupname in bpy.data.groups:
             bpy.data.groups.remove(bpy.data.groups[interfacegroupname])
@@ -659,7 +664,7 @@ def setProperties(obj, diction, category=None):
 
     """
     for key, value in diction.items():
-        obj[(category + '/' + key) if category else key] = value
+        obj[f'{category}/{key}' if category else key] = value
 
 
 def getProperties(obj, category=None):
@@ -683,12 +688,12 @@ def getProperties(obj, category=None):
         category = obj.phobostype
     try:
         diction = {
-            key.replace(category + '/', ''): value
+            key.replace(f'{category}/', ''): value
             for key, value in obj.items()
-            if key.startswith(category + '/')
+            if key.startswith(f'{category}/')
         }
     except KeyError:
-        log("Failed filtering properties for category " + category, "ERROR")
+        log(f"Failed filtering properties for category {category}", "ERROR")
     return diction
 
 
@@ -742,7 +747,7 @@ def mergeLinks(links, targetlink, movetotarget=False):
         try:
             parentObjectsTo(bpy.context.selected_objects, targetlink)
         except RuntimeError as e:
-            log("Cannot resolve new parent hierarchy: " + str(e), 'ERROR')
+            log(f"Cannot resolve new parent hierarchy: {str(e)}", 'ERROR')
         del link
 
 
@@ -770,7 +775,7 @@ def addAnnotationObject(obj, annotation, name=None, size=0.1, namespace=None):
     """
     loc = obj.matrix_world.to_translation()
     if not name:
-        name = obj.name + '_annotation_object'
+        name = f'{obj.name}_annotation_object'
 
     annot_obj = bUtils.createPrimitive(
         name,
@@ -782,8 +787,9 @@ def addAnnotationObject(obj, annotation, name=None, size=0.1, namespace=None):
     )
     annot_obj.scale = (size,) * 3
 
-    resource = ioUtils.getResource(['annotation', namespace.split('/')[-1]])
-    if resource:
+    if resource := ioUtils.getResource(
+        ['annotation', namespace.split('/')[-1]]
+    ):
         annot_obj.data = resource.data
     else:
         annot_obj.data = ioUtils.getResource(['annotation', 'default']).data
@@ -820,7 +826,10 @@ def addAnnotation(obj, annotation, namespace=None, ignore=[]):
 
     """
     for key, value in annotation.items():
-        obj[str(namespace + '/' if namespace and key not in ignore else '') + key] = value
+        obj[
+            str(f'{namespace}/' if namespace and key not in ignore else '')
+            + key
+        ] = value
 
 
 def sortObjectsToLayers(objs):
@@ -839,7 +848,7 @@ def sortObjectsToLayers(objs):
             # first check if we have a collcection for the type
             bUtils.sortObjectToCollection(obj, cname=obj.phobostype)
         else:
-            log("The phobostype of object {} is undefined.".format(obj.name), 'ERROR')
+            log(f"The phobostype of object {obj.name} is undefined.", 'ERROR')
 
 
 def smoothen_surface(obj):
@@ -866,7 +875,7 @@ def smoothen_surface(obj):
     # use edge split modifier to improve the look of CAD-models
     for mod in obj.modifiers:
         if mod.type == 'EDGE_SPLIT':
-            log("Edge split modifier already added to object {}.".format(obj.name), 'DEBUG')
+            log(f"Edge split modifier already added to object {obj.name}.", 'DEBUG')
             break
     else:
         bpy.ops.object.modifier_add(type='EDGE_SPLIT')

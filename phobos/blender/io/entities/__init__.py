@@ -13,10 +13,11 @@
 Parses the model entities on import and provides them as :data:`entity_types`.
 """
 
+
 import os
 import importlib.util
 
-entity_types = dict()
+entity_types = {}
 
 # this creates a dict entry for every python file in this subfolder
 for filename in os.listdir(os.path.dirname(__file__)):
@@ -33,7 +34,7 @@ for filename in os.listdir(os.path.dirname(__file__)):
 
         # try reading the entity dictionary and add it to the existing entities
         if hasattr(py_mod, 'entity_type_dict'):
-            entity_types.update(py_mod.entity_type_dict.copy())
+            entity_types |= py_mod.entity_type_dict.copy()
             print('Registered entity plugin:', list(py_mod.entity_type_dict.keys()))
         else:
             print(

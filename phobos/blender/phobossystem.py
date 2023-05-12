@@ -27,25 +27,30 @@ def getScriptsPath():
     Returns:
 
     """
-    if sys.platform == 'linux':
-        scriptspath = path.normpath(
-            path.expanduser('~/.config/blender/{0}/scripts'.format(blenderversion))
-        )
-    elif sys.platform == 'darwin':
-        scriptspath = path.normpath(
+    if sys.platform == 'darwin':
+        return path.normpath(
             path.expanduser(
-                '~/Library/Application Support/Blender/{0}/scripts'.format(blenderversion)
+                '~/Library/Application Support/Blender/{0}/scripts'.format(
+                    blenderversion
+                )
+            )
+        )
+    elif sys.platform == 'linux':
+        return path.normpath(
+            path.expanduser(
+                '~/.config/blender/{0}/scripts'.format(blenderversion)
             )
         )
     elif sys.platform == 'win32':
-        scriptspath = path.normpath(
+        return path.normpath(
             path.expanduser(
-                '~/AppData/Roaming/Blender Foundation/Blender/{0}/scripts'.format(blenderversion)
+                '~/AppData/Roaming/Blender Foundation/Blender/{0}/scripts'.format(
+                    blenderversion
+                )
             )
         )
     else:
-        scriptspath = 'ERROR: {0} not supported,'.format(sys.platform)
-    return scriptspath
+        return 'ERROR: {0} not supported,'.format(sys.platform)
 
 
 def getConfigPath():
@@ -58,9 +63,13 @@ def getConfigPath():
     Returns:
 
     """
-    configpath = path.normpath(path.join(bpy.utils.user_resource(resource_type='SCRIPTS', path="addons"), "phobos",
-                                         "config"))
-    return configpath
+    return path.normpath(
+        path.join(
+            bpy.utils.user_resource(resource_type='SCRIPTS', path="addons"),
+            "phobos",
+            "config",
+        )
+    )
 
 
 def getBlenderConfigPath():
@@ -72,22 +81,27 @@ def getBlenderConfigPath():
       : str -- scripts path
 
     """
-    if sys.platform == 'linux':
-        scriptspath = path.normpath(
-            path.expanduser('~/.config/blender/{0}/config'.format(blenderversion))
-        )
-    elif sys.platform == 'darwin':
-        scriptspath = path.normpath(
+    if sys.platform == 'darwin':
+        return path.normpath(
             path.expanduser(
-                '~/Library/Application Support/Blender/{0}/config'.format(blenderversion)
+                '~/Library/Application Support/Blender/{0}/config'.format(
+                    blenderversion
+                )
+            )
+        )
+    elif sys.platform == 'linux':
+        return path.normpath(
+            path.expanduser(
+                '~/.config/blender/{0}/config'.format(blenderversion)
             )
         )
     elif sys.platform == 'win32':
-        scriptspath = path.normpath(
+        return path.normpath(
             path.expanduser(
-                '~/AppData/Roaming/Blender Foundation/Blender/{0}/config'.format(blenderversion)
+                '~/AppData/Roaming/Blender Foundation/Blender/{0}/config'.format(
+                    blenderversion
+                )
             )
         )
     else:
-        scriptspath = 'ERROR: {0} not supported,'.format(sys.platform)
-    return scriptspath
+        return 'ERROR: {0} not supported,'.format(sys.platform)

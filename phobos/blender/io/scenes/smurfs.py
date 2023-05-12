@@ -31,8 +31,8 @@ def exportSMURFScene(entities, path):
     Returns:
 
     """
-    log("Exporting scene to " + path + '.smurfs', "INFO")
-    with open(path + '.smurfs', 'w') as outputfile:
+    log(f"Exporting scene to {path}.smurfs", "INFO")
+    with open(f'{path}.smurfs', 'w') as outputfile:
         sceneinfo = (
             "# SMURF scene created at "
             + path
@@ -41,7 +41,7 @@ def exportSMURFScene(entities, path):
             + "\n"
         )
         log(sceneinfo, "INFO")
-        sceneinfo += "# created with Phobos " + version + " - " + repository + "\n\n"
+        sceneinfo += f"# created with Phobos {version} - {repository}" + "\n\n"
         ioUtils.securepath(path)
         outputfile.write(sceneinfo)
         entitiesdict = roundFloatsInDict(

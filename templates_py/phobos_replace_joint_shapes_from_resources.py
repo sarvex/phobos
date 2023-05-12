@@ -20,7 +20,7 @@ for joint in joints:
     try:
         jointtypes.add(joint['joint/type'])
     except KeyError:
-        log("No joint type defined for link object: " + joint.name, 'INFO')
+        log(f"No joint type defined for link object: {joint.name}", 'INFO')
 
 resources = ioUtils.importResources((('joint', jointtype) for jointtype in jointtypes))
 
@@ -30,4 +30,4 @@ for joint in joints:
             nUtils.addNamespaceToName('joint' + '_' + joint['joint/type'], 'resource')
         ]
     except KeyError:
-        log("No joint type defined for link object: " + joint.name, 'INFO')
+        log(f"No joint type defined for link object: {joint.name}", 'INFO')

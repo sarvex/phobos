@@ -69,20 +69,21 @@ def check_dict_alg(dic, validator, entry_list, messages, whole_validator, curren
     for node in validator:
         new_list = dc(entry_list)
         node_value = validator[node]
-        if node != 'isReference':
-            if not ('isReference' in node_value and len(entry_list) == 0):
-                if is_operator(node):
-                    handle_operator(
-                        node, dic, validator, new_list, messages, whole_validator, current_elem
-                    )
-                elif is_leaf(node_value):
-                    new_list.append(node)
-                    check_leaf(node_value, dic, new_list, messages, current_elem)
-                else:
-                    new_list.append(node)
-                    check_dict_alg(
-                        dic, node_value, new_list, messages, whole_validator, current_elem
-                    )
+        if node != 'isReference' and (
+            'isReference' not in node_value or len(entry_list) != 0
+        ):
+            if is_operator(node):
+                handle_operator(
+                    node, dic, validator, new_list, messages, whole_validator, current_elem
+                )
+            elif is_leaf(node_value):
+                new_list.append(node)
+                check_leaf(node_value, dic, new_list, messages, current_elem)
+            else:
+                new_list.append(node)
+                check_dict_alg(
+                    dic, node_value, new_list, messages, whole_validator, current_elem
+                )
 
 
 def is_leaf(node_value):
@@ -128,21 +129,20 @@ def check_leaf(leaf_value, dic, entry_list, messages, current_elem):
     """
     value = traverse_dict(dic, entry_list)
     default_value = leaf_value['default']
-    required_type = type(default_value)
     required = leaf_value['required']
     # messages.append("Checking leaf " + str(entry_list))
     if required and value is None:
         add_message(
-            messages, current_elem, "The required value in " + str(entry_list) + " cannot be found!"
+            messages,
+            current_elem,
+            f"The required value in {str(entry_list)} cannot be found!",
         )
+    required_type = type(default_value)
     if value is not None and not isinstance(value, required_type):
         add_message(
             messages,
             current_elem,
-            "The required value in "
-            + str(entry_list)
-            + " doesn't match expected type "
-            + str(required_type),
+            f"The required value in {str(entry_list)} doesn't match expected type {str(required_type)}",
         )
 
 
@@ -188,11 +188,10 @@ def handle_operator(node, dic, validator, entry_list, messages, whole_validator,
             check_dict_alg(dic, rest_validator, entry_list, messages, whole_validator, current_elem)
         else:
             add_message(
-                messages, current_elem, "Could not find " + select_type + " in " + str(entry_list)
+                messages,
+                current_elem,
+                f"Could not find {select_type} in {str(entry_list)}",
             )
-    elif node.startswith('$exists__'):
-        # TODO handle it somehow...
-        pass
 
 
 def traverse_dict(dic, entry_list):
@@ -209,11 +208,11 @@ def traverse_dict(dic, entry_list):
 
     """
     length = len(entry_list)
-    if length > 0:
+    if length > 0 and isinstance(dic, dict):
         element = entry_list[0]
-        if isinstance(dic, dict) and length > 1 and element in dic:
+        if length > 1 and element in dic:
             return traverse_dict(dic[element], entry_list[1:])
-        elif isinstance(dic, dict) and length == 1 and element in dic:
+        elif length == 1 and element in dic:
             return dic[element]
     return None
 
@@ -266,11 +265,13 @@ class ValidateMessage:
     def log(self):
         """TODO Missing documentation"""
         log(
-            self.message
-            + str(
-                ''
-                if not isinstance(self.obj, bpy.types.Object)
-                else " @" + nUtils.getObjectName(self.obj)
+            (
+                self.message
+                + str(
+                    ''
+                    if not isinstance(self.obj, bpy.types.Object)
+                    else f" @{nUtils.getObjectName(self.obj)}"
+                )
             )
             + str(
                 ('\n' + 4 * ' ' + self.information['log_info'])
@@ -306,25 +307,24 @@ def validateObjectNames(obj):
     objname = obj.name
     errors = []
 
-    if phobtype + '/name' in obj:
-        nameset = set([ptype[0] for ptype in defs.phobostypes if ptype[0] + '/name' in obj])
+    if f'{phobtype}/name' in obj:
+        nameset = {ptype[0] for ptype in defs.phobostypes if f'{ptype[0]}/name' in obj}
 
         # links are allowed to contain additional joint information
         if phobtype == 'link' and 'joint' in nameset:
-            nameset = nameset.difference(set(['joint']))
-        nameset = nameset.difference(set([phobtype]))
+            nameset = nameset.difference({'joint'})
+        nameset = nameset.difference({phobtype})
 
-        for key in nameset:
-            errors.append(
-                ValidateMessage(
-                    "Redundant name: '" + key + "/name'!",
-                    "WARNING",
-                    obj,
-                    "phobos.fix_object_names",
-                    key + '/name',
-                )
+        errors.extend(
+            ValidateMessage(
+                f"Redundant name: '{key}/name'!",
+                "WARNING",
+                obj,
+                "phobos.fix_object_names",
+                f'{key}/name',
             )
-
+            for key in nameset
+        )
     # TODO add unique name checks etc
     return errors
 
@@ -407,14 +407,17 @@ def validateJointType(link, adjust=False):
         else:
             # fix joint type and assign new resource object
             link['joint/type'] = joint_type
-            resource_obj = ioUtils.getResource(('joint', joint_type))
-            if resource_obj:
-                log("Assigned resource to {}.".format(link.name), 'DEBUG')
+            if resource_obj := ioUtils.getResource(('joint', joint_type)):
+                log(f"Assigned resource to {link.name}.", 'DEBUG')
                 link.pose.bones[0].custom_shape = resource_obj
 
             errors.append(
                 ValidateMessage(
-                    "Adjusted joint type to '" + joint_type + "'.", 'INFO', link, None, {}
+                    f"Adjusted joint type to '{joint_type}'.",
+                    'INFO',
+                    link,
+                    None,
+                    {},
                 )
             )
 
@@ -431,11 +434,7 @@ def validateLink(link, objectlist=None):
     Returns:
 
     """
-    errors = []
-
-    # TODO add validation tests
-
-    return errors
+    return []
 
 
 def validateObjectPose(obj, adjust=False, **kwargs):
@@ -449,11 +448,7 @@ def validateObjectPose(obj, adjust=False, **kwargs):
     Returns:
 
     """
-    errors = []
-
-    # TODO add validation tests
-
-    return errors
+    return []
 
 
 def validateMaterial(material, adjust=False):
@@ -702,7 +697,7 @@ def validateInertiaData(obj, *args, adjust=False):
                 'WARNING',
                 None if isinstance(obj, dict) else obj,
                 None,
-                {'log_info': "Diagonal: " + str(inertia.diagonal())},
+                {'log_info': f"Diagonal: {str(inertia.diagonal())}"},
             )
         )
 
@@ -714,7 +709,7 @@ def validateInertiaData(obj, *args, adjust=False):
                 'WARNING',
                 None if isinstance(obj, dict) else obj,
                 None,
-                {'log_info': "Determinant: " + str(numpy.linalg.det(inertia))},
+                {'log_info': f"Determinant: {str(numpy.linalg.det(inertia))}"},
             )
         )
 
@@ -730,14 +725,16 @@ def validateInertiaData(obj, *args, adjust=False):
                     'WARNING',
                     None if isinstance(obj, dict) else obj,
                     None,
-                    {'log_info': "Eigenvalues: " + str(numpy.linalg.eigvals(inertia))},
+                    {
+                        'log_info': f"Eigenvalues: {str(numpy.linalg.eigvals(inertia))}"
+                    },
                 )
             )
 
     if mass <= 0.:
         errors.append(
             ValidateMessage(
-                "Mass is {}!".format('zero' if mass == 0. else 'negative'),
+                f"Mass is {'zero' if mass == 0.0 else 'negative'}!",
                 'WARNING',
                 None if isinstance(obj, dict) else obj,
                 None,
@@ -770,9 +767,7 @@ def validateVisual(obj, *args, adjust=False, geometry_dict=None):
     Returns:
 
     """
-    errors = []
-
-    return errors
+    return []
 
 
 def validate(name):

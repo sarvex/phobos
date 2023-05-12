@@ -72,7 +72,7 @@ def createLink(link):
       : bpy_types.Object -- the newly created blender link object.
 
     """
-    log("Creating link object '{}'...".format(link['name']), 'DEBUG', prefix='\n')
+    log(f"Creating link object '{link['name']}'...", 'DEBUG', prefix='\n')
     # create armature/bone
     bUtils.toggleLayer('link', True)
     bpy.ops.object.select_all(action='DESELECT')
@@ -108,7 +108,7 @@ def createLink(link):
     for prop in link:
         if prop.startswith('$'):
             for tag in link[prop]:
-                newlink['link/' + prop[1:] + '/' + tag] = link[prop][tag]
+                newlink[f'link/{prop[1:]}/{tag}'] = link[prop][tag]
 
     # create inertial
     if 'inertial' in link:
@@ -143,22 +143,24 @@ def deriveLinkfromObject(obj, scale=0.2, parent_link=True, parent_objects=False,
       : newly created link
 
     """
-    log('Deriving link from ' + nUtils.getObjectName(obj), level="INFO")
+    log(f'Deriving link from {nUtils.getObjectName(obj)}', level="INFO")
     if nameformat == '':
-        linkname = 'link_' + nUtils.getObjectName(obj)
+        linkname = f'link_{nUtils.getObjectName(obj)}'
     else:
         try:
             nameparts = [p for p in re.split('[^a-zA-Z]', nUtils.getObjectName(obj)) if p != '']
             linkname = nameformat.format(*nameparts)
         except IndexError:
-            log('Invalid name format (indices) for naming: ' + nUtils.getObjectName(obj), 'WARNING')
-            linkname = 'link_' + nUtils.getObjectName(obj)
+            log(
+                f'Invalid name format (indices) for naming: {nUtils.getObjectName(obj)}',
+                'WARNING',
+            )
+            linkname = f'link_{nUtils.getObjectName(obj)}'
     link = createLink({'scale': scale, 'name': linkname, 'matrix': obj.matrix_world})
 
     # parent link to object's parent
-    if parent_link:
-        if obj.parent:
-            eUtils.parentObjectsTo(link, obj.parent)
+    if parent_link and obj.parent:
+        eUtils.parentObjectsTo(link, obj.parent)
     # parent children of object to link
     if parent_objects:
         children = [obj] + sUtils.getImmediateChildren(obj)

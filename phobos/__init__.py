@@ -37,12 +37,15 @@ try:
         import os
 
         py_exec = str(sys.executable)
-        # Get lib directory
-        lib = None
-        for path in sys.path:
-            if "modules" in path and ("Roaming" in path or ".config" in path or "Users" in path):
-                lib = path
-                break
+        lib = next(
+            (
+                path
+                for path in sys.path
+                if "modules" in path
+                and ("Roaming" in path or ".config" in path or "Users" in path)
+            ),
+            None,
+        )
         # Ensure pip is installed
         os.system(" ".join([py_exec, "-m", "ensurepip", "--user"]))
         # Update pip (not mandatory)
@@ -88,7 +91,7 @@ try:
         results = {}
         # iterate over all modules in package path
         for loader, name, is_pkg in pkgutil.walk_packages(package.__path__):
-            full_name = package.__name__ + '.' + name
+            full_name = f'{package.__name__}.{name}'
 
             # reload already imported modules
             if full_name in modules.keys():
@@ -103,7 +106,7 @@ try:
 
             # recursion on submodules
             if recursive and is_pkg:
-                results.update(import_submodules(full_name))
+                results |= import_submodules(full_name)
         return results
 
     print("Checking requirements")

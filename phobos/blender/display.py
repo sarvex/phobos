@@ -221,7 +221,12 @@ def draw_message(text, msgtype, slot, opacity=1.0, offset=0):
     draw_text(text, (start + 2, slotlower[slot] + 4), size=6, color=(1, 1, 1, opacity))
     if slot == 0 and offset > 0:
         # draw_text(str(offset) + ' \u25bc', (start - 30, slotlower[0] + 4), size=6, color=(1, 1, 1, opacity))
-        draw_text('+' + str(offset), (start - 30, slotlower[0] + 4), size=6, color=(1, 1, 1, 1))
+        draw_text(
+            f'+{str(offset)}',
+            (start - 30, slotlower[0] + 4),
+            size=6,
+            color=(1, 1, 1, 1),
+        )
 
 
 def draw_progressbar(value):
@@ -234,7 +239,7 @@ def draw_progressbar(value):
 
     """
     region = bpy.context.region
-    text = str(round(value * 100)) + '%'
+    text = f'{str(round(value * 100))}%'
     lc = (0.0, 1.0, 0.0, 1.0)
     fc = (0.0, 1.0, 0.0, 0.3)
     xstart = region.width * 0.2
@@ -293,10 +298,7 @@ def draw_path(path, color=colors['white'], dim3=False, width=4):
     Returns:
 
     """
-    origins = []
-    for e in range(len(path)):
-        origins.append(path[e].matrix_world.to_translation())
-
+    origins = [path[e].matrix_world.to_translation() for e in range(len(path))]
     bgl.glEnable(bgl.GL_BLEND)
     bgl.glLineWidth(width)
 
@@ -327,10 +329,9 @@ def draw_callback_3d(self, context):
     bgl.glEnable(bgl.GL_BLEND)
 
     # joint axes
-    if len(selected) > 0:
-        if wm.draw_jointaxes:
-            for j in [o for o in selected if o.phobostype == 'link']:
-                draw_joint(j, wm.jointaxes_length)
+    if len(selected) > 0 and wm.draw_jointaxes:
+        for j in [o for o in selected if o.phobostype == 'link']:
+            draw_joint(j, wm.jointaxes_length)
 
     # restore opengl defaults
     bgl.glLineWidth(1)
@@ -349,10 +350,7 @@ def draw_callback_2d(self, context):
     """
     active = context.object
     selected = context.selected_objects
-    if active and selected:
-        objects = set(selected + [active])
-    else:
-        objects = []
+    objects = set(selected + [active]) if active and selected else []
     wm = context.window_manager
 
     # code that can be used to draw on 2d surface in 3d mode, not used any more
@@ -511,9 +509,6 @@ class DisplayInformationOperator(Operator):
             wm.phobos_msg_offset += 1
         if event.type == 'PAGE_DOWN' and event.value == 'PRESS':
             wm.phobos_msg_offset -= 1
-        if event.shift and event.type == 'LEFTMOUSE' and event.value == 'CLICK':
-            pass
-
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
@@ -533,7 +528,7 @@ class DisplayInformationOperator(Operator):
         if context.area.type != 'VIEW_3D':
             from phobos.blender.phoboslog import log
 
-            log("View3D not found, cannot run " + self.bl_idname, 'WARNING')
+            log(f"View3D not found, cannot run {self.bl_idname}", 'WARNING')
             return {'CANCELLED'}
 
         log("Start drawing Phobos information.", 'DEBUG')
@@ -583,8 +578,8 @@ def setProgress(value, info=None):
 
 def endProgress():
     global progressinfo
-    win = bpy.context.window_manager
     if progressinfo:
+        win = bpy.context.window_manager
         win.progress_end()
         progressinfo = None
 

@@ -32,14 +32,14 @@ def derive_oldMotor(obj):
     for oldProps, newProps in key_map.items():
         if oldProps in obj.keys():
             if oldProps == 'motor/type' and obj[oldProps] == 'PID':
-                new_motor.update({newProps: 'generic_bldc'})
+                new_motor[newProps] = 'generic_bldc'
             elif oldProps == 'motor/type' and obj[oldProps] == 'DC':
-                new_motor.update({newProps: 'generic_dc'})
+                new_motor[newProps] = 'generic_dc'
             else:
-                new_motor.update({newProps: obj[oldProps]})
-            
-    if not 'motor/name' in new_motor.keys():
-        new_motor.update({'motor/name': obj.name + '_Motor'})
+                new_motor[newProps] = obj[oldProps]
+
+    if 'motor/name' not in new_motor:
+        new_motor['motor/name'] = f'{obj.name}_Motor'
 
     return new_motor
 
@@ -54,20 +54,20 @@ def update_child(child, obj):
     Returns:
 
     """
-    motor_keys = ['motor/maxEffort', 'motor/maxSpeed']
-    controller_map = {
-        'controller/p': 'motor/p',
-        'controller/i': 'motor/i',
-        'controller/d': 'motor/d',
-    }
-
     if isinstance(child, list):
         for children in child:
             update_child(children, obj)
     else:
+        controller_map = {
+            'controller/p': 'motor/p',
+            'controller/i': 'motor/i',
+            'controller/d': 'motor/d',
+        }
+
         if child.phobostype == 'motor':
-            child.name = obj.name + '_Motor'
+            child.name = f'{obj.name}_Motor'
             child['motor/name'] = obj.name
+            motor_keys = ['motor/maxEffort', 'motor/maxSpeed']
             for prop in motor_keys:
                 try:
                     child[prop] = obj[prop]
@@ -78,7 +78,7 @@ def update_child(child, obj):
                 del obj['motor/type']
 
         elif child.phobostype == 'controller':
-            child.name = obj.name + '_Controller'
+            child.name = f'{obj.name}_Controller'
             child['controller/name'] = obj.name
             for new, old in controller_map.items():
                 try:

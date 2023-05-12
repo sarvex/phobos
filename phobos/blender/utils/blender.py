@@ -169,7 +169,10 @@ def createPrimitive(
             radius=psize, location=plocation, rotation=protation
         )
     else:
-        log("Primitive type not found: " + ptype + ". Adding default cube instead.", 'WARNING')
+        log(
+            f"Primitive type not found: {ptype}. Adding default cube instead.",
+            'WARNING',
+        )
         bpy.ops.mesh.primitive_cube_add(location=plocation, rotation=protation)
         obj = bpy.context.object
         obj.dimensions = psize
@@ -217,10 +220,7 @@ def toggleLayer(cname, value=None):
     """
     craeteCollectionIfNotExists(cname)
     coll = bpy.context.window.view_layer.layer_collection.children[cname]
-    if value:
-        coll.exclude = not value
-    else:
-        coll.exclude = not coll.exclude
+    coll.exclude = not value if value else not coll.exclude
 
 
 
@@ -256,7 +256,7 @@ def readTextFile(textfilename):
 
     """
     if textfilename not in bpy.data.texts:
-        log("No text file " + textfilename + " found.", "WARNING")
+        log(f"No text file {textfilename} found.", "WARNING")
         return ""
     return "\n".join([l.body for l in bpy.data.texts[textfilename].lines])
 
@@ -299,7 +299,7 @@ def openScriptInEditor(scriptname):
             if area.type == 'TEXT_EDITOR':
                 area.spaces.active.text = bpy.data.texts[scriptname]
     else:
-        log("There is no script named " + scriptname + "!", "ERROR")
+        log(f"There is no script named {scriptname}!", "ERROR")
 
 
 def cleanObjectProperties(props):
@@ -311,15 +311,15 @@ def cleanObjectProperties(props):
     Returns:
 
     """
-    getridof = [
-        'phobostype',
-        '_RNA_UI',
-        'cycles_visibility',
-        'startChain',
-        'endChain',
-        'masschanged',
-    ]
     if props:
+        getridof = [
+            'phobostype',
+            '_RNA_UI',
+            'cycles_visibility',
+            'startChain',
+            'endChain',
+            'masschanged',
+        ]
         for key in getridof:
             if key in props:
                 del props[key]
@@ -361,7 +361,7 @@ def createPreview(objects, export_path, modelname, render_resolution=256, opengl
     Returns:
 
     """
-    log("Creating thumbnail of model: " + modelname, "INFO")
+    log(f"Creating thumbnail of model: {modelname}", "INFO")
 
     # render presets
     bpy.context.scene.render.image_settings.file_format = 'PNG'
@@ -371,7 +371,7 @@ def createPreview(objects, export_path, modelname, render_resolution=256, opengl
 
     # hide everything that is not supposed to show
     for ob in bpy.data.objects:
-        if not (ob in objects):
+        if ob not in objects:
             ob.hide_render = True
             ob.hide = True
 
@@ -401,8 +401,13 @@ def createPreview(objects, export_path, modelname, render_resolution=256, opengl
         bpy.ops.object.delete()
 
     # safe render and reset the scene
-    log("Saving model preview to: " + os.path.join(export_path, modelname + '.png'), "INFO")
-    bpy.data.images['Render Result'].save_render(os.path.join(export_path, modelname + '.png'))
+    log(
+        f"Saving model preview to: {os.path.join(export_path, f'{modelname}.png')}",
+        "INFO",
+    )
+    bpy.data.images['Render Result'].save_render(
+        os.path.join(export_path, f'{modelname}.png')
+    )
 
     # make all objects visible again
     for ob in bpy.data.objects:
@@ -461,10 +466,9 @@ def getCombinedDimensions(objects):
     """
     bbpoints = []
     for o in objects:
-        for p in o.bound_box:
-            bbpoints.append(o.matrix_world @ mathutils.Vector(p))
-    mindims = [min([bbpoint[i] for bbpoint in bbpoints]) for i in (0, 1, 2)]
-    maxdims = [max([bbpoint[i] for bbpoint in bbpoints]) for i in (0, 1, 2)]
+        bbpoints.extend(o.matrix_world @ mathutils.Vector(p) for p in o.bound_box)
+    mindims = [min(bbpoint[i] for bbpoint in bbpoints) for i in (0, 1, 2)]
+    maxdims = [max(bbpoint[i] for bbpoint in bbpoints) for i in (0, 1, 2)]
     return [abs(maxdims[i] - mindims[i]) for i in (0, 1, 2)]
 
 
@@ -484,13 +488,11 @@ def getPhobosConfigPath():
         return getConfigPath()
 
 def sortObjectToCollection(obj, cname="Collection"):
-    set_active = False
-    if bpy.context.active_object == obj:
-        set_active = True
+    set_active = bpy.context.active_object == obj
     craeteCollectionIfNotExists(cname)
     for name, collection in bpy.context.scene.collection.children.items():
         if name == cname:
-            if not obj.name in collection.objects:
+            if obj.name not in collection.objects:
                 collection.objects.link(obj)
         elif obj.name in collection.objects:
             collection.objects.unlink(obj)
@@ -501,7 +503,7 @@ def sortObjectToCollection(obj, cname="Collection"):
         bpy.context.view_layer.objects.active = obj
 
 def craeteCollectionIfNotExists(cname="Collection"):
-    if not cname in bpy.context.scene.collection.children.keys():
+    if cname not in bpy.context.scene.collection.children.keys():
         newcollection = bpy.data.collections.new(cname)
         bpy.context.scene.collection.children.link(newcollection)
 

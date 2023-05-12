@@ -104,12 +104,12 @@ def bakeModel(objlist, modelname, posename="", decimate_type='COLLAPSE', decimat
         securepath(os.path.join(bake_outpath, 'bakes'))
         bake_outpath = os.path.join(bake_outpath, 'bakes/')
 
-    export_name = modelname + '_' + posename
+    export_name = f'{modelname}_{posename}'
 
-    visuals = [o for o in objlist if ("phobostype" in o and o.phobostype == "visual")]
-    if len(visuals) > 0:
-
-        log("Baking model to " + bake_outpath, "INFO")
+    if visuals := [
+        o for o in objlist if ("phobostype" in o and o.phobostype == "visual")
+    ]:
+        log(f"Baking model to {bake_outpath}", "INFO")
         sUtils.selectObjects(visuals, active=0)
         log("Copying objects for joining...", "INFO")
         bpy.ops.object.duplicate(linked=False, mode='TRANSLATION')
@@ -128,14 +128,14 @@ def bakeModel(objlist, modelname, posename="", decimate_type='COLLAPSE', decimat
         bpy.context.object.modifiers["Decimate"].decimate_type = decimate_type
         if decimate_type == 'COLLAPSE':
             bpy.context.object.modifiers["Decimate"].ratio = decimate_parameter
-        elif decimate_type == 'UNSUBDIV':
-            bpy.context.object.modifiers["Decimate"].iterations = decimate_parameter
         elif decimate_type == 'DISSOLVE':
             bpy.context.object.modifiers["Decimate"].angle_limit = decimate_parameter
 
+        elif decimate_type == 'UNSUBDIV':
+            bpy.context.object.modifiers["Decimate"].iterations = decimate_parameter
         log("Applying modifier...", "INFO")
         bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Decimate")
-        obj.name = export_name + ".obj"
+        obj.name = f"{export_name}.obj"
 
         # TODO use_selection might cause bugs, depending on Blender version
         bpy.ops.export_scene.obj(filepath=os.path.join(bake_outpath, obj.name), use_selection=True)
@@ -169,7 +169,7 @@ def storePose(root, posename):
 
     """
     if root:
-        filename = nUtils.getModelName(root) + '::poses'
+        filename = f'{nUtils.getModelName(root)}::poses'
         posedict = json.loads(bUtils.readTextFile(filename))
         if not posedict:
             posedict = {posename: {'name': posename, 'joints': {}}}
@@ -205,14 +205,14 @@ def loadPose(modelname, posename):
 
     """
 
-    load_file = bUtils.readTextFile(modelname + '::poses')
+    load_file = bUtils.readTextFile(f'{modelname}::poses')
     if load_file == '':
         log('No poses stored.', 'ERROR')
         return
 
     loadedposes = json.loads(load_file)
     if posename not in loadedposes:
-        log('No pose with name ' + posename + ' stored for model ' + modelname, 'ERROR')
+        log(f'No pose with name {posename} stored for model {modelname}', 'ERROR')
         return
     prev_mode = bpy.context.mode
     pose = loadedposes[posename]
@@ -227,7 +227,7 @@ def loadPose(modelname, posename):
                     pose['joints'][nUtils.getObjectName(obj, 'joint')]
                 )
     except KeyError as error:
-        log("Could not apply the pose: " + str(error), 'ERROR')
+        log(f"Could not apply the pose: {str(error)}", 'ERROR')
     finally:
         # restore previous mode
         bpy.ops.object.mode_set(mode=prev_mode)
@@ -243,7 +243,7 @@ def getPoses(modelname):
       : A list containing the poses' names.
 
     """
-    load_file = bUtils.readTextFile(modelname + '::poses')
+    load_file = bUtils.readTextFile(f'{modelname}::poses')
     if load_file == '':
         return []
     poses = json.loads(load_file)

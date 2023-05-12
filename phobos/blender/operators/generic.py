@@ -127,9 +127,9 @@ class DynamicProperty(PropertyGroup):
             prefix = 'f'
         # TODO what about lists?
 
-        self.name = prefix + '_' + name
+        self.name = f'{prefix}_{name}'
 
-    def assignDict(addfunc, dictionary, ignore=[]):
+    def assignDict(self, dictionary, ignore=[]):
         """
 
         Args:
@@ -150,7 +150,7 @@ class DynamicProperty(PropertyGroup):
                 unsupported[propname] = dictionary[propname]
                 continue
 
-            subprop = addfunc()
+            subprop = self()
             subprop.assignValue(propname, dictionary[propname])
 
         return unsupported
@@ -200,15 +200,16 @@ def addObjectFromYaml(name, phobtype, presetname, execute_func, *args, hideprops
         pass
 
     blender_name = name.replace(' ', '_').lower()
-    operatorBlenderId = 'phobos.add_{}_{}'.format(phobtype, blender_name)
+    operatorBlenderId = f'phobos.add_{phobtype}_{blender_name}'
 
-    # create the temporary operator class
+
+
     class TempObjAddOperator(Operator):
         """Temporary operator to add a generic object."""
 
         bl_idname = operatorBlenderId
-        bl_label = 'Add {} {}'.format(name, phobtype)
-        bl_description = 'Add a {} {}.'.format(name, phobtype)
+        bl_label = f'Add {name} {phobtype}'
+        bl_description = f'Add a {name} {phobtype}.'
         bl_options = {'INTERNAL'}
 
         # this contains all the single entries of the dictionary after invoking
@@ -254,20 +255,17 @@ def addObjectFromYaml(name, phobtype, presetname, execute_func, *args, hideprops
 
             """
             # load the motor definitions of the current motor
-            data = defs.definitions[self.phobostype + 's'][self.preset_name]
+            data = defs.definitions[f'{self.phobostype}s'][self.preset_name]
 
             # ignore properties which should not show up in the GUI
             hidden_props = ['general'] + hideprops
 
-            # identify the property type for all the stuff in the definition
-            unsupported = DynamicProperty.assignDict(
+            if unsupported := DynamicProperty.assignDict(
                 self.phobos_data.add, data, ignore=hidden_props
-            )
-
-            if unsupported:
+            ):
                 for key in unsupported:
                     boolprop = self.annotation_checks.add()
-                    boolprop.name = 'b_' + key
+                    boolprop.name = f'b_{key}'
                     boolprop.boolProp = False
 
             # open up the operator GUI
@@ -305,9 +303,9 @@ def addObjectFromYaml(name, phobtype, presetname, execute_func, *args, hideprops
             for custom_anno in self.annotation_checks:
                 if custom_anno.boolProp:
                     # parse object dictionaries if "$selected_objects:..." syntax is found
-                    annot = defs.definitions[self.phobostype + 's'][self.preset_name][
-                        custom_anno.name[2:]
-                    ]
+                    annot = defs.definitions[f'{self.phobostype}s'][
+                        self.preset_name
+                    ][custom_anno.name[2:]]
 
                     annotations[custom_anno.name[2:]] = linkObjectLists(annot, selected_objs)
 
@@ -329,6 +327,7 @@ def addObjectFromYaml(name, phobtype, presetname, execute_func, *args, hideprops
                     bUtils.toggleLayer(obj.phobostype, value=True)
 
             return {'FINISHED'}
+
 
     # register the temporary operator and return its blender id
     bpy.utils.register_class(TempObjAddOperator)
@@ -501,7 +500,7 @@ class AddAnnotationsOperator(bpy.types.Operator):
 
         if unsupported:
             log(
-                "These properties are not supported for generic editing: " + str(list(unsupported)),
+                f"These properties are not supported for generic editing: {list(unsupported)}",
                 'DEBUG',
             )
 
@@ -525,7 +524,7 @@ class AddAnnotationsOperator(bpy.types.Operator):
                     eUtils.addAnnotationObject(
                         obj,
                         annotation,
-                        name=obj.name + '_annotation',
+                        name=f'{obj.name}_annotation',
                         namespace=self.annotationtype.rstrip('s'),
                     )
                 )

@@ -38,7 +38,7 @@ def getModelListForEnumProperty(self, context):
 
     """
     category = context.window_manager.category
-    if category == '-' or category == '':
+    if category in ['-', '']:
         return [('-',) * 3]
     return sorted(model_previews[category].enum_items)
 
@@ -104,18 +104,19 @@ def compileModelList():
             modelpath = os.path.join(categorypath, modelname)
 
             # check for valid blender savefile in the model folder
-            if os.path.exists(os.path.join(modelpath, 'blender', modelname + '.blend')):
+            if os.path.exists(
+                os.path.join(modelpath, 'blender', f'{modelname}.blend')
+            ):
                 model_data[category][modelname] = {'path': modelpath}
 
                 # use existing thumbnail if available
                 if os.path.exists(os.path.join(modelpath, 'thumbnails')):
-                    previewpath = os.path.join(modelpath, 'thumbnails', modelname + '.png')
+                    previewpath = os.path.join(modelpath, 'thumbnails', f'{modelname}.png')
                     preview = newpreviewcollection.load(modelname, previewpath, 'IMAGE')
-                # otherwise create one from the blend file
                 else:
-                    previewpath = os.path.join(modelpath, 'blender', modelname + '.blend')
+                    previewpath = os.path.join(modelpath, 'blender', f'{modelname}.blend')
                     preview = newpreviewcollection.load(modelname, previewpath, 'BLEND')
-                log("Adding model to preview: " + previewpath, 'DEBUG')
+                log(f"Adding model to preview: {previewpath}", 'DEBUG')
                 enum_items.append((modelname, modelname, "", preview.icon_id, i))
                 i += 1
                 categories.add(category)
@@ -185,10 +186,10 @@ class ImportModelFromLibraryOperator(bpy.types.Operator):
         namespaces = nUtils.gatherNamespaces('__' if self.use_prefix else '::')
         if modelname in namespaces:
             i = 1
-            self.namespace = modelname + '_' + str(i)
+            self.namespace = f'{modelname}_{i}'
             while self.namespace in namespaces:
                 i += 1
-                self.namespace = modelname + '_' + str(i)
+                self.namespace = f'{modelname}_{i}'
         return context.window_manager.invoke_props_dialog(self, width=500)
 
     def execute(self, context):
@@ -205,17 +206,17 @@ class ImportModelFromLibraryOperator(bpy.types.Operator):
         if not model_data:
             compileModelList()
         filepath = os.path.join(
-            model_data[wm.category][wm.modelpreview]['path'], 'blender', wm.modelpreview + '.blend'
+            model_data[wm.category][wm.modelpreview]['path'],
+            'blender',
+            f'{wm.modelpreview}.blend',
         )
         if ioUtils.importBlenderModel(filepath, self.namespace, self.use_prefix):
             return {'FINISHED'}
-        else:
-            log(
-                "Model " + wm.modelpreview + " could not be loaded from library:"
-                "No valid .blend file.",
-                "ERROR",
-            )
-            return {'CANCELLED'}
+        log(
+            f"Model {wm.modelpreview} could not be loaded from library:No valid .blend file.",
+            "ERROR",
+        )
+        return {'CANCELLED'}
 
 
 def register():

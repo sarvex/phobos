@@ -12,12 +12,7 @@ import glob
 import subprocess
 import sys
 
-blenderExecutable = 'blender'
-
-# allow override of blender executable (important for CI!)
-if len(sys.argv) > 1:
-    blenderExecutable = sys.argv[1]
-
+blenderExecutable = sys.argv[1] if len(sys.argv) > 1 else 'blender'
 # run all tests before aborting build
 testfailed = False
 
@@ -25,7 +20,7 @@ testfailed = False
 # and open up blender with the .test.blend file and the corresponding .test.py python script
 for file in glob.glob('tests/**/*.test.blend'):
     print('#' * 100)
-    print('Running {} tests...'.format(file))
+    print(f'Running {file} tests...')
     print('#' * 100)
     code = subprocess.call([blenderExecutable, '--addons', 'phobos', '--factory-startup',
                             '-noaudio', '-b', file, '--python', file.replace('.blend', '.py'),

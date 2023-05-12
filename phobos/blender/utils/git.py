@@ -70,7 +70,7 @@ def cloneGit(name, url, destination):
         subprocess.check_output(
             ['git', 'clone', url, name], cwd=destination, universal_newlines=True
         )
-        log("Cloned git into " + destination + ".", "INFO")
+        log(f"Cloned git into {destination}.", "INFO")
         return True
     except subprocess.CalledProcessError:
         log(
@@ -140,7 +140,7 @@ def initGit(destination, filename=None, initialsave=False, url=None, readmetxt='
             ['git', 'push', '-u', 'origin', 'master'], cwd=destination, universal_newlines=True
         )
     except subprocess.CalledProcessError as error:
-        log('Could not initialise git folder: ' + str(error), 'ERROR')
+        log(f'Could not initialise git folder: {str(error)}', 'ERROR')
         return False
 
     makeGitFolders(destination)
@@ -148,7 +148,7 @@ def initGit(destination, filename=None, initialsave=False, url=None, readmetxt='
     # saving the initial folder state
     if initialsave and filename:
         bpy.ops.wm.save_as_mainfile(
-            filepath=os.path.join(destination, 'blender', filename + '.blend')
+            filepath=os.path.join(destination, 'blender', f'{filename}.blend')
         )
         if not commit(destination):
             return False
@@ -180,7 +180,7 @@ def commit(destination, message='Automated commit', ignore=[]):
                     ['git', 'add', direc], cwd=destination, universal_newlines=True
                 )
             except subprocess.CalledProcessError:
-                log('Could not add to git: ' + direc, 'ERROR')
+                log(f'Could not add to git: {direc}', 'ERROR')
                 return False
 
     # Commit the changes
@@ -191,10 +191,10 @@ def commit(destination, message='Automated commit', ignore=[]):
             universal_newlines=True,
         )
         subprocess.check_output(['git', 'push', 'origin'], cwd=destination, universal_newlines=True)
-        log('Commit to ' + destination + ' successful.', 'DEBUG')
+        log(f'Commit to {destination} successful.', 'DEBUG')
         return True
     except subprocess.CalledProcessError as error:
-        log('Could not commit and push: ' + str(error), 'ERROR')
+        log(f'Could not commit and push: {str(error)}', 'ERROR')
         return False
 
 
@@ -243,12 +243,12 @@ def checkoutBranch(branch, workingdir, create=False, pushorigin=False):
         subprocess.check_output(
             ['git', 'checkout', branch], cwd=workingdir, universal_newlines=True
         )
-        log("Checkout branch " + branch + " successful.", "INFO")
+        log(f"Checkout branch {branch} successful.", "INFO")
         return True
     except subprocess.CalledProcessError:
         if create:
             return createNewBranch(branch, workingdir, pushorigin)
-        log("Could not checkout branch " + branch + ".", "ERROR")
+        log(f"Could not checkout branch {branch}.", "ERROR")
         return False
 
 
@@ -270,14 +270,14 @@ def createNewBranch(branch, workingdir, pushorigin=False):
         subprocess.check_output(
             ['git', 'checkout', '-b', branch], cwd=workingdir, universal_newlines=True
         )
-        log("Created branch " + branch + ".", "INFO")
+        log(f"Created branch {branch}.", "INFO")
         if pushorigin:
             subprocess.check_output(
                 ['git', 'push', '-u', 'origin', branch], cwd=workingdir, universal_newlines=True
             )
         return True
     except subprocess.CalledProcessError as e:
-        log("Could not create branch " + branch + ": " + str(e), "ERROR")
+        log(f"Could not create branch {branch}: {str(e)}", "ERROR")
         return False
 
 
@@ -299,10 +299,10 @@ def checkoutCommit(commit, workingdir):
         subprocess.check_output(
             ['git', 'checkout', commit], cwd=workingdir, universal_newlines=True
         )
-        log("Checked out commit " + commit + ".", "INFO")
+        log(f"Checked out commit {commit}.", "INFO")
         return True
     except subprocess.CalledProcessError:
-        log("Problem checking out " + commit, "ERROR")
+        log(f"Problem checking out {commit}", "ERROR")
         return False
 
 
@@ -358,11 +358,14 @@ def getGitRemotes(category='', folder=None):
                     remotes['push'][linedata[0]] = linedata[1]
             except IndexError:
                 log("Git return line does not fit expected output format.", "ERROR")
-        log("Found the following remotes: " + json.dump(remotes), "DEBUG")
+        log(f"Found the following remotes: {json.dump(remotes)}", "DEBUG")
         try:
             return remotes[category]
         except KeyError:
-            log("No valid remotes category ('fetch'/'push') provided: " + category, "DEBUG")
+            log(
+                f"No valid remotes category ('fetch'/'push') provided: {category}",
+                "DEBUG",
+            )
             return remotes
     except subprocess.CalledProcessError:
         log("CalledProcessError", "ERROR")

@@ -54,7 +54,9 @@ def createInertial(inertialdict, obj, size=0.03, errors=None, adjust=False, logg
         origin = mathutils.Vector()
 
     # create new inertial object
-    name = nUtils.getUniqueName('inertial_' + nUtils.getObjectName(obj), bpy.data.objects)
+    name = nUtils.getUniqueName(
+        f'inertial_{nUtils.getObjectName(obj)}', bpy.data.objects
+    )
     inertialobject = bUtils.createPrimitive(
         name,
         'box',
@@ -83,7 +85,7 @@ def createInertial(inertialdict, obj, size=0.03, errors=None, adjust=False, logg
 
     # add properties to the object
     for prop in ('mass', 'inertia'):
-        inertialobject['inertial/' + prop] = inertialdict[prop]
+        inertialobject[f'inertial/{prop}'] = inertialdict[prop]
     return inertialobject
 
 
@@ -252,7 +254,7 @@ def calculateMeshInertia(mass, data, scale=None):
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.quads_convert_to_tris(quad_method='FIXED')
     bpy.ops.object.mode_set(mode=prev_mode)
-    triangles = [[v for v in p.vertices] for p in data.polygons]
+    triangles = [list(p.vertices) for p in data.polygons]
     triangle_normals = numpy.asarray([t.normal for t in data.polygons])
 
     com = numpy.mean(vertices, axis=0)
@@ -508,7 +510,7 @@ def fuse_inertia_data(inertials):
 
     # Find objects who have some inertial data
     for obj in inertials:
-        if not any([True for key in obj.keys() if key.startswith('inertial/')]):
+        if not any(True for key in obj.keys() if key.startswith('inertial/')):
             inertials.remove(obj)
 
     # Check for an empty list -> No inertials to fuse
@@ -525,7 +527,7 @@ def fuse_inertia_data(inertials):
     # Check for conformity
     if fused_mass <= expsetting:
         log(" Correcting fused mass : negative semidefinite value.", 'WARNING')
-        fused_mass = expsetting if fused_mass < expsetting else fused_mass
+        fused_mass = max(fused_mass, expsetting)
 
     # TODO Maybe we can reuse the functions defined here.
     # Calculate the fused inertias
@@ -584,7 +586,7 @@ def combine_com_3x3(objects):
         combined_com = combined_com + obj.matrix_local.translation * obj['inertial/mass']
         combined_mass += obj['inertial/mass']
     combined_com = combined_com / combined_mass
-    log("  Combined center of mass: " + str(combined_com), 'DEBUG')
+    log(f"  Combined center of mass: {str(combined_com)}", 'DEBUG')
     return combined_mass, combined_com
 
 
@@ -622,9 +624,7 @@ def shift_com_inertia_3x3(mass, com, inertia_com, ref_point=mathutils.Vector((0.
     """
     c = com - ref_point  # difference vector
     c_outer = gUtils.outerProduct(c, c)
-    inertia_ref = inertia_com + mass * (c.dot(c) * mathutils.Matrix.Identity(3) - c_outer)
-
-    return inertia_ref
+    return inertia_com + mass * (c.dot(c) * mathutils.Matrix.Identity(3) - c_outer)
 
 
 def spin_inertia_3x3(inertia_3x3, rotmat, passive=True):
@@ -663,15 +663,7 @@ def spin_inertia_3x3(inertia_3x3, rotmat, passive=True):
     R_T = rotmat.transposed()
     I = inertia_3x3
 
-    if passive:
-        # the object stands still but the inertia is expressed with respect to a rotated reference frame
-        rotated_inertia = R_T @ I @ R
-
-    else:
-        # the object moves and therefore its inertia
-        rotated_inertia = R @ I @ R_T
-
-    return rotated_inertia
+    return R_T @ I @ R if passive else R @ I @ R_T
 
 
 def compound_inertia_analysis_3x3(objects):
@@ -685,11 +677,9 @@ def compound_inertia_analysis_3x3(objects):
     """
     total_mass, common_com = combine_com_3x3(objects)
 
-    shifted_inertias = list()
+    shifted_inertias = []
     for obj in objects:
-        if 'rot' in obj and not obj['rot'] == mathutils.Matrix.Identity(
-            3
-        ):  # if object is rotated in local space
+        if 'rot' in obj and obj['rot'] != mathutils.Matrix.Identity(3):  # if object is rotated in local space
             objinertia = spin_inertia_3x3(
                 inertiaListToMatrix(obj['inertia']), obj['rot']
             )  # transform inertia to link space
